@@ -9,6 +9,16 @@
 
 [![Github Data](https://github-readme-stats.vercel.app/api?username=Nanaloveyuki)]()
 
+You know, I'm not good at writing algorithmic programs
+
+Not only because of my insufficient abstract understanding of mathematics, but also partly because I didn't learn mathematics well
+
+But I will try my best to create content that is excellent enough, whether it's the "Minecraft" resource pack or LiteyukiBot
+
+## What is project I'm interested?
+- LiteyukiBot(and Unifficial version)
+- AE2 Style Mekanism
+
 ## To-do List
 - Learn Python
 - Learn Java
@@ -17,4 +27,5 @@
   
 ## My social account
 - QQ: 3541766758
+- Email: [naloveyuki09@outlook.com](naloveyuki09@outlook.com)
   

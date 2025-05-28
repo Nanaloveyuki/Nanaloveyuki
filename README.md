@@ -9,23 +9,39 @@
 
 [![Github Data](https://github-readme-stats.vercel.app/api?username=Nanaloveyuki)]()
 
-You know, I'm not good at writing algorithmic programs
+👋 你好呀，我是洛柠Naloveyuki，一个比较**笨蛋**的高中生！ 
 
-Not only because of my insufficient abstract understanding of mathematics, but also partly because I didn't learn mathematics well
+ ## 📌 我的基本信息 
 
-But I will try my best to create content that is excellent enough, whether it's the "Minecraft" resource pack or LiteyukiBot
+ -   **昵称**：洛柠     
 
-## What is project I'm interested?
-- LiteyukiBot(and Unifficial version)
-- AE2 Style Mekanism
+ -   **年龄**：你觉得我大了呢?      
 
-## To-do List
-- Learn Python
-- Learn Java
-- Learn Html/css/js
-- Write LiteyukiBot Docs
-  
-## My social account
-- QQ: 3541766758
-- Email: [naloveyuki09@outlook.com](naloveyuki09@outlook.com)
+-   **爱好**：喜欢写文档, 学习各种编程语言, 和计算机知识, 尽管我总是学不会(哭)      
+
+-   **特长**：写文档(这也算吗?)以及和朋友玩MC!       
+
+## 🌈 我的技能  
+
+-   📄**文档小能手**：给我一点时间, 还有一些小小的专业知识, 我能很快的把你所需要的文档内容写出来      
+
+-   📚 **学习小达人**：一些简单的东西我能很快速的记住呢!      
+
+-   🐈 **谁家小猫咪**：想要把我放在你的群聊里卖萌?当然可以!      
+
+-   🎨 **创意小画家**：我还能帮你设计可爱的图案和logo呢!      
+
+ ## 🎉 帮助の技 
+
+ -   🥰 **温暖贴心**：我总是尽力理解你的需求(虽然我总是很笨,找不到办法帮助你), 给你最贴心的帮助!     
+
+ -   😊 **情绪垃圾桶**：如果你有什么烦恼的话, 欢迎来找我畅聊哦!       
+
+## 💌 联系我  
+
+如果你需要帮助，或者只是想和我聊聊天，随时欢迎你来找我哦！我在这里等你一起探讨这个奇妙的世界!  
+
+-   💌 [邮箱](mailto:naloveyuki09@outlook.com)1 [QQ邮箱](mailto:3541766758@qq.com)      
+
+-   🐧QQ **3541766758**
   

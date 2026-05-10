@@ -35,10 +35,10 @@
 ## ✨我的优势
 
 编程语言：
-> Rust | Python | Golang | C#
+> Rust | Python | Golang | C# | MoonBit
 
 项目管理：
-> git | cargo | uv
+> git | cargo | uv | moon
 
  ## 🎉 帮助の技 
 

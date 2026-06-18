@@ -1,0 +1,158 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { contacts, featuredLinks, profile, quickFacts, sections, skills } from '../data/site';
+
+const pageTitle = `${profile.name} | 个人导航`;
+---
+
+<BaseLayout title={pageTitle} description={profile.description}>
+  <main class="shell">
+    <section class="hero panel reveal">
+      <div class="hero-copy">
+        <p class="eyebrow">Personal Portal</p>
+        <h1>{profile.name}</h1>
+        <p class="tagline">{profile.tagline}</p>
+        <p class="hero-text">{profile.summary}</p>
+
+        <div class="hero-actions">
+          <a
+            class="button button-primary"
+            href={profile.github.href}
+            target="_blank"
+            rel="noreferrer"
+          >
+            查看 GitHub
+          </a>
+          <a class="button button-secondary" href="#links">快速导航</a>
+        </div>
+      </div>
+
+      <div class="hero-meta">
+        <div class="meta-card meta-card-compact">
+          <span class="meta-label">状态</span>
+          <strong>{profile.status}</strong>
+          <p>{profile.mood}</p>
+        </div>
+
+        <div class="meta-card">
+          <span class="meta-label">技能快照</span>
+          <ul class="pill-list">
+            {skills.map((skill) => <li>{skill}</li>)}
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="facts-grid reveal delay-1" aria-label="基本信息">
+      {
+        quickFacts.map((fact) => (
+          <article class="fact-card panel">
+            <span class="meta-label">{fact.label}</span>
+            <strong>{fact.value}</strong>
+          </article>
+        ))
+      }
+    </section>
+
+    <section id="links" class="panel reveal delay-2">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Featured Links</p>
+          <h2>常用入口</h2>
+        </div>
+        <p>把最常打开的主页、组织和联系方式直接放到首页，后续只要改一处数据文件就能扩展。</p>
+      </div>
+
+      <div class="link-grid">
+        {
+          featuredLinks.map((link) => (
+            <a
+              class="link-card"
+              href={link.href}
+              target={link.external ? '_blank' : undefined}
+              rel={link.external ? 'noreferrer' : undefined}
+              style={`--card-accent: ${link.accent};`}
+            >
+              <span class="link-tag">{link.tag}</span>
+              <strong>{link.label}</strong>
+              <p>{link.description}</p>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="section-grid reveal delay-3">
+      {
+        sections.map((section) => (
+          <article class="panel section-card">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">{section.kicker}</p>
+                <h2>{section.title}</h2>
+              </div>
+              <p>{section.description}</p>
+            </div>
+
+            <div class="section-list">
+              {section.items.map((item) => (
+                <a
+                  class="mini-link"
+                  href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noreferrer' : undefined}
+                  style={`--mini-accent: ${item.accent};`}
+                >
+                  <div>
+                    <strong>{item.label}</strong>
+                    <p>{item.description}</p>
+                  </div>
+                  <span>{item.tag}</span>
+                </a>
+              ))}
+            </div>
+          </article>
+        ))
+      }
+    </section>
+
+    <section class="contact-grid reveal delay-4">
+      <article class="panel contact-panel">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Contact</p>
+            <h2>联系我</h2>
+          </div>
+          <p>保留轻量、直接的联系入口，不把页面做成花哨社交墙。</p>
+        </div>
+
+        <div class="contact-list">
+          {
+            contacts.map((contact) => (
+              <a
+                class="contact-item"
+                href={contact.href}
+                target={contact.external ? '_blank' : undefined}
+                rel={contact.external ? 'noreferrer' : undefined}
+              >
+                <span>{contact.label}</span>
+                <strong>{contact.value}</strong>
+              </a>
+            ))
+          }
+        </div>
+      </article>
+
+      <aside class="panel note-panel">
+        <p class="eyebrow">Build Notes</p>
+        <h2>工程基线</h2>
+        <ul class="note-list">
+          <li>Astro 静态输出，天然适合 GitHub Pages。</li>
+          <li>ESLint + Prettier 负责代码质量和格式一致性。</li>
+          <li>Knip 检查未使用依赖，Dependabot 持续跟踪依赖更新。</li>
+          <li>GitHub Actions 同时跑校验链和静态部署。</li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+</BaseLayout>

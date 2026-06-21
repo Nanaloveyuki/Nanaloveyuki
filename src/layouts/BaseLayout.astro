@@ -16,7 +16,8 @@ type Props = {
 };
 
 const { title, description, pathname = '/', bodyClass = '', showFooter = true } = Astro.props;
-const assetBase = import.meta.env.BASE_URL;
+const basePath = import.meta.env.BASE_URL;
+const assetBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
 const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
 ---
 

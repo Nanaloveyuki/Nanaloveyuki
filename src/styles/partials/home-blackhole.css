@@ -176,9 +176,42 @@
 
 .blackhole-home-sections {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 28px;
   margin-top: 56px;
+}
+
+.blackhole-friends-panel p {
+  max-width: 22rem;
+}
+
+.blackhole-friend-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 18px 0 0;
+  list-style: none;
+}
+
+.blackhole-friend-list li {
+  display: grid;
+  gap: 4px;
+}
+
+.blackhole-friend-list small {
+  color: rgba(
+    calc(231 - var(--story-contrast) * 92),
+    calc(220 - var(--story-contrast) * 94),
+    calc(207 - var(--story-contrast) * 96),
+    0.72
+  );
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.blackhole-friend-list li:hover small {
+  color: rgba(255, 235, 205, 0.92);
 }
 
 .blackhole-link-list {

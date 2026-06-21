@@ -11,10 +11,19 @@ const SCROLL_TRACK_SELECTOR = '[data-blackhole-scroll-track]';
 const HEADER_SELECTOR = '[data-site-header]';
 const NIGHT_WARNING_SELECTOR = '[data-blackhole-night-warning]';
 const NIGHT_WARNING_CONFIRM_SELECTOR = '[data-blackhole-night-warning-confirm]';
+const FRIEND_TOOLTIP_SELECTOR = '[data-blackhole-friend-tooltip]';
 const BLACKHOLE_BODY_CLASS = 'theme-blackhole';
 
 type SceneName = 'home' | 'projects' | 'blog' | 'tools';
 type RenderQuality = 'low' | 'medium';
+type FriendPlanetType = 'cool' | 'cold' | 'warm' | 'hot';
+
+type FriendPlanet = {
+  name: string;
+  url: string;
+  type: FriendPlanetType;
+  description: string;
+};
 
 type PerformanceConfig = {
   resolution: number;
@@ -165,8 +174,8 @@ class CameraDragControls {
     }
 
     if (this.enabled && this.mouseDragOn) {
-      this.yaw += this.lookSpeed * this.offsetX;
-      this.pitch += this.lookSpeed * this.offsetY;
+      this.yaw -= this.lookSpeed * this.offsetX;
+      this.pitch -= this.lookSpeed * this.offsetY;
       this.pitch = clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
 
       this.offsetX *= 0.5;
@@ -235,10 +244,10 @@ class CameraDragControls {
   }
 }
 
-class KeyboardOrbitControls {
+class KeyboardMoveControls {
   private activeKeys = new Set<string>();
-  yaw = 0;
-  pitch = 0;
+  offset = new THREE.Vector3();
+  velocity = new THREE.Vector3();
 
   constructor() {
     window.addEventListener('keydown', this.onKeyDown);
@@ -246,29 +255,50 @@ class KeyboardOrbitControls {
     window.addEventListener('blur', this.clear);
   }
 
-  update(delta: number, distance: number, allowInput: boolean, recenterStrength: number) {
-    if (allowInput) {
-      const orbitSpeed = clamp(distance * 0.07, 0.08, 0.56) * delta;
+  update(
+    delta: number,
+    distance: number,
+    allowInput: boolean,
+    recenterStrength: number,
+    basis: { forward: THREE.Vector3; right: THREE.Vector3; up: THREE.Vector3 },
+  ) {
+    const acceleration = clamp(distance * 1.18, 0.9, 4.4);
+    const damping = Math.exp(-delta * 4.4);
+    const accelerationStep = acceleration * delta;
 
-      if (this.activeKeys.has('KeyA')) {
-        this.yaw += orbitSpeed;
-      }
-      if (this.activeKeys.has('KeyD')) {
-        this.yaw -= orbitSpeed;
-      }
+    if (allowInput) {
       if (this.activeKeys.has('KeyW')) {
-        this.pitch += orbitSpeed * 0.85;
+        this.velocity.addScaledVector(basis.forward, accelerationStep);
       }
       if (this.activeKeys.has('KeyS')) {
-        this.pitch -= orbitSpeed * 0.85;
+        this.velocity.addScaledVector(basis.forward, -accelerationStep);
       }
-
-      this.pitch = clamp(this.pitch, -1.15, 1.15);
+      if (this.activeKeys.has('KeyA')) {
+        this.velocity.addScaledVector(basis.right, -accelerationStep);
+      }
+      if (this.activeKeys.has('KeyD')) {
+        this.velocity.addScaledVector(basis.right, accelerationStep);
+      }
+      if (this.activeKeys.has('Space')) {
+        this.velocity.addScaledVector(basis.up, accelerationStep);
+      }
+      if (this.activeKeys.has('ShiftLeft') || this.activeKeys.has('ShiftRight')) {
+        this.velocity.addScaledVector(basis.up, -accelerationStep);
+      }
     }
 
-    if (recenterStrength > 0) {
-      this.yaw = THREE.MathUtils.lerp(this.yaw, 0, recenterStrength);
-      this.pitch = THREE.MathUtils.lerp(this.pitch, 0, recenterStrength);
+    this.velocity.multiplyScalar(damping);
+    this.offset.addScaledVector(this.velocity, delta);
+
+    const maxOffset = THREE.MathUtils.lerp(1.8, 4.4, clamp((distance - 1.52) / 8.48, 0, 1));
+    if (this.offset.length() > maxOffset) {
+      this.offset.setLength(maxOffset);
+      this.velocity.multiplyScalar(0.72);
+    }
+
+    if (!allowInput && recenterStrength > 0) {
+      this.offset.lerp(new THREE.Vector3(0, 0, 0), recenterStrength);
+      this.velocity.multiplyScalar(1 - clamp(recenterStrength * 1.4, 0, 0.92));
     }
   }
 
@@ -279,14 +309,16 @@ class KeyboardOrbitControls {
   }
 
   private onKeyDown = (event: KeyboardEvent) => {
-    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) return;
+    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code))
+      return;
 
     this.activeKeys.add(event.code);
     event.preventDefault();
   };
 
   private onKeyUp = (event: KeyboardEvent) => {
-    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) return;
+    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code))
+      return;
 
     this.activeKeys.delete(event.code);
     event.preventDefault();
@@ -538,6 +570,16 @@ const bootBlackholeDemo = () => {
   const nightWarningConfirm = nightWarning?.querySelector<HTMLButtonElement>(
     NIGHT_WARNING_CONFIRM_SELECTOR,
   );
+  const friendTooltip = document.querySelector<HTMLElement>(FRIEND_TOOLTIP_SELECTOR);
+  const friendTooltipType = friendTooltip?.querySelector<HTMLElement>(
+    '[data-blackhole-friend-tooltip-type]',
+  );
+  const friendTooltipName = friendTooltip?.querySelector<HTMLElement>(
+    '[data-blackhole-friend-tooltip-name]',
+  );
+  const friendTooltipDescription = friendTooltip?.querySelector<HTMLElement>(
+    '[data-blackhole-friend-tooltip-description]',
+  );
 
   if (!canvasMount) {
     throw new Error('Missing blackhole demo mount points');
@@ -556,20 +598,40 @@ const bootBlackholeDemo = () => {
   canvasMount.append(renderer.domElement);
 
   const scene = new THREE.Scene();
+  const overlayScene = new THREE.Scene();
   const screenCamera = new THREE.Camera();
   screenCamera.position.z = 1;
 
   const composer = new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, screenCamera);
+  const overlayRenderPass = new RenderPass(overlayScene, screenCamera);
+  overlayRenderPass.clear = false;
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(128, 128), 1.0, 0.5, 0.6);
   const shaderPass = new ShaderPass(CopyShader);
   shaderPass.renderToScreen = true;
   composer.addPass(renderPass);
+  composer.addPass(overlayRenderPass);
   composer.addPass(bloomPass);
   composer.addPass(shaderPass);
 
   const textureLoader = new THREE.TextureLoader();
   const textures = new Map<string, THREE.Texture | null>();
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const orbitGroup = new THREE.Group();
+  orbitGroup.renderOrder = 2;
+  overlayScene.add(orbitGroup);
+
+  const friendPlanets: Array<{
+    data: FriendPlanet;
+    pivot: THREE.Group;
+    mesh: THREE.Mesh;
+    orbitRadius: number;
+    orbitSpeed: number;
+    hueShift: number;
+  }> = [];
+  const clickablePlanetMeshes: THREE.Mesh[] = [];
+  let hoveredFriendPlanet: FriendPlanet | null = null;
   const loadTexture = (
     name: string,
     url: string,
@@ -592,6 +654,254 @@ const bootBlackholeDemo = () => {
         reject,
       );
     });
+
+  const loadFriendPlanets = async () => {
+    const response = await fetch(`${import.meta.env.BASE_URL}friend.json`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to load friend planets: ${response.status}`);
+    }
+
+    return (await response.json()) as FriendPlanet[];
+  };
+
+  const hashString = (value: string) => {
+    let hash = 0;
+
+    for (let index = 0; index < value.length; index += 1) {
+      hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+    }
+
+    return hash;
+  };
+
+  const getInitialKey = (name: string) => {
+    const firstCharacter = name.trim().charAt(0).toUpperCase();
+
+    if (firstCharacter >= 'A' && firstCharacter <= 'Z') {
+      return firstCharacter;
+    }
+
+    return firstCharacter || '#';
+  };
+
+  const getOrbitBand = (name: string) => {
+    const key = getInitialKey(name);
+
+    if (key >= 'A' && key <= 'F') return 0;
+    if (key >= 'G' && key <= 'L') return 1;
+    if (key >= 'M' && key <= 'R') return 2;
+    return 3;
+  };
+
+  const createOrbitLine = (radius: number) => {
+    const points: THREE.Vector3[] = [];
+
+    for (let step = 0; step <= 128; step += 1) {
+      const angle = (step / 128) * Math.PI * 2;
+      points.push(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+    }
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color: new THREE.Color('#c6ccd6'),
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    });
+    const line = new THREE.LineLoop(geometry, material);
+    line.rotation.x = Math.PI / 2.05;
+    line.position.y = -0.08;
+    return line;
+  };
+
+  const createPlanetMaterial = (type: FriendPlanetType) => {
+    const palettes: Record<
+      FriendPlanetType,
+      {
+        dayA: string;
+        dayB: string;
+        night: string;
+        rim: string;
+        detailA: string;
+        detailB: string;
+        emission: string;
+        emissionStrength: number;
+      }
+    > = {
+      cold: {
+        dayA: '#d8ecff',
+        dayB: '#89b8df',
+        night: '#0f1f38',
+        rim: '#edf7ff',
+        detailA: '#f6fbff',
+        detailB: '#5e86ab',
+        emission: '#99d9ff',
+        emissionStrength: 0.02,
+      },
+      cool: {
+        dayA: '#c88455',
+        dayB: '#7a4026',
+        night: '#1f0f0a',
+        rim: '#ffd1a6',
+        detailA: '#eab37f',
+        detailB: '#5f2d1f',
+        emission: '#ffb36b',
+        emissionStrength: 0.03,
+      },
+      warm: {
+        dayA: '#2f79d7',
+        dayB: '#2f8a58',
+        night: '#071526',
+        rim: '#dff2ff',
+        detailA: '#f6f2dc',
+        detailB: '#1d5f43',
+        emission: '#7ec8ff',
+        emissionStrength: 0.01,
+      },
+      hot: {
+        dayA: '#ff8f4a',
+        dayB: '#71190f',
+        night: '#220804',
+        rim: '#ffd9a8',
+        detailA: '#ffe16a',
+        detailB: '#c2371e',
+        emission: '#ff7a2f',
+        emissionStrength: 0.18,
+      },
+    };
+
+    const palette = palettes[type];
+
+    return new THREE.ShaderMaterial({
+      transparent: false,
+      uniforms: {
+        lightDirection: { value: new THREE.Vector3(0, 0, -1) },
+        time: { value: 0 },
+        dayColorA: { value: new THREE.Color(palette.dayA) },
+        dayColorB: { value: new THREE.Color(palette.dayB) },
+        nightColor: { value: new THREE.Color(palette.night) },
+        rimColor: { value: new THREE.Color(palette.rim) },
+        detailColorA: { value: new THREE.Color(palette.detailA) },
+        detailColorB: { value: new THREE.Color(palette.detailB) },
+        emissionColor: { value: new THREE.Color(palette.emission) },
+        emissionStrength: { value: palette.emissionStrength },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        varying vec2 vUv;
+
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          vUv = uv;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        varying vec2 vUv;
+
+        uniform vec3 lightDirection;
+        uniform float time;
+        uniform vec3 dayColorA;
+        uniform vec3 dayColorB;
+        uniform vec3 nightColor;
+        uniform vec3 rimColor;
+        uniform vec3 detailColorA;
+        uniform vec3 detailColorB;
+        uniform vec3 emissionColor;
+        uniform float emissionStrength;
+
+        float hash(vec2 point) {
+          return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        float noise(vec2 point) {
+          vec2 i = floor(point);
+          vec2 f = fract(point);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+
+          return mix(
+            mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
+            mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+            u.y
+          );
+        }
+
+        void main() {
+          vec3 normal = normalize(vNormal);
+          vec3 lightDir = normalize(lightDirection);
+          float diffuse = max(dot(normal, lightDir), 0.0);
+        float wrappedLight = smoothstep(-0.18, 0.92, dot(normal, lightDir));
+        float continentNoise = noise(vUv * 6.0 + vec2(time * 0.004, 0.0));
+        float detailNoise = noise(vUv * 16.0 + vec2(0.0, time * 0.003));
+        float bandNoise = sin(vUv.y * 18.0 + time * 0.3) * 0.5 + 0.5;
+        float craterMask = smoothstep(0.62, 0.88, noise(vUv * 28.0));
+        vec3 baseDay = mix(dayColorA, dayColorB, continentNoise);
+        vec3 detailColor = mix(detailColorA, detailColorB, detailNoise);
+        vec3 dayColor = mix(baseDay, detailColor, 0.32);
+        dayColor = mix(dayColor, detailColorA, bandNoise * emissionStrength * 0.4);
+        dayColor = mix(dayColor, detailColorB, craterMask * 0.24);
+        vec3 litColor = mix(nightColor, dayColor, wrappedLight);
+        float rim = pow(1.0 - max(dot(normal, normalize(-vWorldPosition)), 0.0), 2.4);
+        vec3 emissionGlow = emissionColor * emissionStrength * (0.45 + bandNoise * 0.55) * diffuse;
+        vec3 finalColor = litColor + rimColor * rim * 0.16 + emissionGlow;
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+      `,
+    });
+  };
+
+  const buildFriendPlanetSystem = async () => {
+    const friends = await loadFriendPlanets();
+    const orbitBaseRadii = [2.8, 3.45, 4.1, 4.85];
+    const orbitBandOffsets = [0, 0, 0, 0];
+
+    friends.forEach((friend, index) => {
+      const hash = hashString(friend.name);
+      const band = getOrbitBand(friend.name);
+      const orbitRadius =
+        orbitBaseRadii[band] + orbitBandOffsets[band] * 0.34 + ((hash % 11) / 10) * 0.1;
+      orbitBandOffsets[band] += 1;
+      const orbitSpeed = 0.08 + (hash % 7) * 0.008 + band * 0.01;
+      const size = 0.12 + ((hash >> 3) % 6) * 0.018 + (friend.type === 'hot' ? 0.04 : 0);
+      const inclination = ((hash % 9) - 4) * 0.015;
+      const initialAngle = ((hash % 360) / 180) * Math.PI + index * 0.18;
+      const hueShift = ((hash % 19) - 9) * 0.01;
+
+      const pivot = new THREE.Group();
+      pivot.rotation.z = inclination;
+      orbitGroup.add(pivot);
+
+      const planetMaterial = createPlanetMaterial(friend.type);
+      const planet = new THREE.Mesh(new THREE.SphereGeometry(size, 40, 40), planetMaterial);
+      planet.position.set(
+        Math.cos(initialAngle) * orbitRadius,
+        0,
+        Math.sin(initialAngle) * orbitRadius,
+      );
+      planet.userData.friendPlanet = friend;
+      planet.userData.tidalLocked = true;
+      pivot.add(planet);
+
+      const orbitLine = createOrbitLine(orbitRadius);
+      pivot.add(orbitLine);
+
+      friendPlanets.push({
+        data: friend,
+        pivot,
+        mesh: planet,
+        orbitRadius,
+        orbitSpeed,
+        hueShift,
+      });
+      clickablePlanetMeshes.push(planet);
+    });
+  };
 
   const performanceConfig = { ...DEFAULT_PERFORMANCE_CONFIG };
 
@@ -660,7 +970,7 @@ const bootBlackholeDemo = () => {
   const observerBaseUp = observer.up.clone();
 
   const cameraControl = new CameraDragControls();
-  const keyboardOrbitControl = new KeyboardOrbitControls();
+  const keyboardMoveControl = new KeyboardMoveControls();
   const getSceneName = () => (pageHost?.dataset.blackholeScene as SceneName | undefined) ?? 'home';
 
   const state = {
@@ -678,6 +988,7 @@ const bootBlackholeDemo = () => {
   };
 
   const origin = new THREE.Vector3(0, 0, 0);
+  const moveAnchor = new THREE.Vector3(0, 0, 0);
   const baseForward = new THREE.Vector3();
   const right = new THREE.Vector3();
   const lookTarget = new THREE.Vector3();
@@ -754,7 +1065,7 @@ const bootBlackholeDemo = () => {
       dragEnabled: true,
       dragRecenter: recenterProgress * 0.12,
       keyboardRecenter: manualOrbitAllowed ? 0 : recenterProgress * 0.12,
-      keyboardEnabled: manualOrbitAllowed,
+      keyboardEnabled: true,
       autoYaw: THREE.MathUtils.lerp(0, 1.05, horizonViewProgress) * autoYawWindow,
       autoPitch: THREE.MathUtils.lerp(0, -0.2, smoothstep(0.2, 0.84, state.scrollProgress)),
       forwardOffset: THREE.MathUtils.lerp(0, 14, emergeProgress),
@@ -923,29 +1234,17 @@ const bootBlackholeDemo = () => {
       observer.angularVelocity = THREE.MathUtils.lerp(observer.angularVelocity, 0, orbitBrake);
     }
 
-    cameraControl.setEnabled(target.dragEnabled);
-    cameraControl.update(target.dragRecenter);
-    keyboardOrbitControl.update(
-      delta,
-      observer.distance,
-      target.keyboardEnabled,
-      target.keyboardRecenter,
-    );
-
     orbitUpAxis.copy(observerBaseUp).normalize();
     rotatedPosition.copy(observer.position);
     rotatedVelocity.copy(observer.velocity);
 
-    orbitYawQuaternion.setFromAxisAngle(orbitUpAxis, keyboardOrbitControl.yaw + target.autoYaw);
+    orbitYawQuaternion.setFromAxisAngle(orbitUpAxis, target.autoYaw);
     rotatedPosition.applyQuaternion(orbitYawQuaternion);
     rotatedVelocity.applyQuaternion(orbitYawQuaternion);
 
     orbitPitchAxis.crossVectors(orbitUpAxis, rotatedPosition).normalize();
     if (orbitPitchAxis.lengthSq() > 0) {
-      orbitPitchQuaternion.setFromAxisAngle(
-        orbitPitchAxis,
-        keyboardOrbitControl.pitch + target.autoPitch,
-      );
+      orbitPitchQuaternion.setFromAxisAngle(orbitPitchAxis, target.autoPitch);
       rotatedPosition.applyQuaternion(orbitPitchQuaternion);
       rotatedVelocity.applyQuaternion(orbitPitchQuaternion);
     }
@@ -957,9 +1256,15 @@ const bootBlackholeDemo = () => {
       observer.up.applyQuaternion(orbitPitchQuaternion);
     }
 
+    rotatedPosition.add(keyboardMoveControl.offset);
+    observer.position.copy(rotatedPosition);
+
     upVector.copy(observer.up).normalize();
     baseForward.copy(origin).sub(observer.position).normalize();
     right.crossVectors(baseForward, upVector).normalize();
+
+    cameraControl.setEnabled(target.dragEnabled);
+    cameraControl.update(target.dragRecenter);
 
     const driftOffset = target.rightOffset + Math.sin(state.time * 0.18) * target.driftAmplitude;
     const starYawOffset = state.time * target.starYawSpeed;
@@ -971,6 +1276,7 @@ const bootBlackholeDemo = () => {
     lookTarget.addScaledVector(baseForward, target.forwardOffset);
     lookTarget.addScaledVector(upVector, target.verticalOffset);
     lookTarget.addScaledVector(right, driftOffset);
+    lookTarget.add(moveAnchor);
 
     lookTarget.sub(observer.position);
 
@@ -987,6 +1293,18 @@ const bootBlackholeDemo = () => {
     }
 
     observer.direction.copy(lookTarget.normalize());
+    keyboardMoveControl.update(
+      delta,
+      observer.distance,
+      target.keyboardEnabled,
+      target.keyboardRecenter,
+      {
+        forward: observer.direction,
+        right,
+        up: upVector,
+      },
+    );
+    moveAnchor.copy(keyboardMoveControl.offset);
     pageHost?.style.setProperty('--story-reveal', target.storyReveal.toFixed(4));
     pageHost?.style.setProperty('--risk-visibility', target.riskVisibility.toFixed(4));
   };
@@ -995,6 +1313,7 @@ const bootBlackholeDemo = () => {
     observer.distance = cameraConfig.distance;
     observer.moving = cameraConfig.orbit;
     observer.fov = cameraConfig.fov;
+    overlayRenderPass.camera = observer;
 
     uniforms.time.value = state.time;
     uniforms.cam_pos.value.copy(observer.position);
@@ -1014,6 +1333,113 @@ const bootBlackholeDemo = () => {
     bloomPass.strength = bloomConfig.strength;
     bloomPass.radius = bloomConfig.radius;
     bloomPass.threshold = bloomConfig.threshold;
+
+    friendPlanets.forEach((planetEntry) => {
+      const planetMaterial = planetEntry.mesh.material;
+
+      if (!(planetMaterial instanceof THREE.ShaderMaterial)) {
+        return;
+      }
+
+      const lightDirection = origin
+        .clone()
+        .sub(planetEntry.mesh.getWorldPosition(new THREE.Vector3()))
+        .normalize();
+      planetMaterial.uniforms.lightDirection.value.copy(lightDirection);
+      planetMaterial.uniforms.time.value = state.time + planetEntry.hueShift * 20;
+      planetEntry.mesh.lookAt(origin);
+    });
+  };
+
+  const updateFriendPlanetSystem = () => {
+    if (getSceneName() !== 'home') {
+      orbitGroup.visible = false;
+      return;
+    }
+
+    orbitGroup.visible = true;
+
+    friendPlanets.forEach((planetEntry, index) => {
+      const angle = state.time * planetEntry.orbitSpeed + index * 1.18;
+      const yOffset = Math.sin(state.time * 0.32 + index) * 0.03;
+
+      planetEntry.mesh.position.set(
+        Math.cos(angle) * planetEntry.orbitRadius,
+        yOffset,
+        Math.sin(angle) * planetEntry.orbitRadius,
+      );
+    });
+  };
+
+  const updatePlanetInteractivity = (event?: PointerEvent) => {
+    const isHome = getSceneName() === 'home';
+
+    canvasMount.style.cursor = isHome ? 'auto' : '';
+    if (!isHome || clickablePlanetMeshes.length === 0) {
+      return;
+    }
+
+    raycaster.setFromCamera(pointer, observer);
+    const intersections = raycaster.intersectObjects(clickablePlanetMeshes, false);
+    const hoveredPlanet = intersections[0]?.object as THREE.Mesh | undefined;
+    hoveredFriendPlanet =
+      (hoveredPlanet?.userData.friendPlanet as FriendPlanet | undefined) ?? null;
+    canvasMount.style.cursor = hoveredPlanet ? 'pointer' : 'auto';
+
+    if (!friendTooltip || !hoveredFriendPlanet) {
+      friendTooltip?.setAttribute('hidden', '');
+      return;
+    }
+
+    if (friendTooltipType) {
+      friendTooltipType.textContent = hoveredFriendPlanet.type;
+    }
+    if (friendTooltipName) {
+      friendTooltipName.textContent = hoveredFriendPlanet.name;
+    }
+    if (friendTooltipDescription) {
+      friendTooltipDescription.textContent = hoveredFriendPlanet.description;
+    }
+
+    if (!event) {
+      friendTooltip.setAttribute('hidden', '');
+      return;
+    }
+
+    friendTooltip.removeAttribute('hidden');
+
+    const tooltipOffsetX = 18;
+    const tooltipOffsetY = 18;
+    friendTooltip.style.left = `${Math.min(window.innerWidth - 320, Math.max(16, event.clientX + tooltipOffsetX))}px`;
+    friendTooltip.style.top = `${Math.min(window.innerHeight - 180, Math.max(16, event.clientY + tooltipOffsetY))}px`;
+  };
+
+  const onPointerCanvasMove = (event: PointerEvent) => {
+    const bounds = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+    pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+    updatePlanetInteractivity(event);
+  };
+
+  const onCanvasPointerLeave = () => {
+    hoveredFriendPlanet = null;
+    canvasMount.style.cursor = 'auto';
+    friendTooltip?.setAttribute('hidden', '');
+  };
+
+  const onCanvasClick = () => {
+    if (getSceneName() !== 'home') {
+      return;
+    }
+
+    raycaster.setFromCamera(pointer, observer);
+    const intersections = raycaster.intersectObjects(clickablePlanetMeshes, false);
+    const clickedPlanet = intersections[0]?.object as THREE.Mesh | undefined;
+    const targetUrl = clickedPlanet?.userData.friendPlanet?.url as string | undefined;
+
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const updateReadableContrast = () => {
@@ -1021,22 +1447,22 @@ const bootBlackholeDemo = () => {
     const horizonExposure = smoothstep(0.12, 0.72, state.scrollProgress);
     const starfieldExposure = smoothstep(0.74, 0.96, state.scrollProgress);
     const lateralGlow = clamp(
-      (Math.abs(keyboardOrbitControl.yaw) + Math.abs(cameraControl.yaw) * 0.6) / 1.4,
+      (Math.abs(keyboardMoveControl.offset.x) + Math.abs(cameraControl.yaw) * 0.4) / 1.2,
       0,
       1,
     );
-    const pitchGlow = clamp(Math.abs(keyboardOrbitControl.pitch + cameraControl.pitch) / 0.9, 0, 1);
+    const pitchGlow = clamp(Math.abs(cameraControl.pitch) / 0.9, 0, 1);
     const targetMix =
       sceneName === 'home'
         ? clamp(
             horizonExposure * 0.72 +
               starfieldExposure * 0.2 +
-              lateralGlow * 0.36 +
+              lateralGlow * 0.18 +
               pitchGlow * 0.24,
             0,
             1,
           )
-        : clamp(0.34 + lateralGlow * 0.46 + pitchGlow * 0.28, 0.28, 0.92);
+        : clamp(0.34 + lateralGlow * 0.22 + pitchGlow * 0.28, 0.28, 0.92);
 
     state.readabilityMix = THREE.MathUtils.lerp(
       state.readabilityMix,
@@ -1111,9 +1537,11 @@ const bootBlackholeDemo = () => {
 
     observer.update(delta);
     updatePresentation(delta);
+    updateFriendPlanetSystem();
     updateUniforms();
     composer.render();
     updateReadableContrast();
+    updatePlanetInteractivity();
     samplePerformance(delta);
 
     state.rafId = window.requestAnimationFrame(tick);
@@ -1167,6 +1595,7 @@ const bootBlackholeDemo = () => {
       THREE.LinearFilter,
       THREE.LinearFilter,
     ),
+    buildFriendPlanetSystem(),
   ]).then(() => {
     setDemoSize();
     cameraControl.handleResize();
@@ -1189,6 +1618,9 @@ const bootBlackholeDemo = () => {
   document.addEventListener('mouseup', clearSelectionGuard, true);
   document.addEventListener('astro:page-load', refreshPageBindings);
   window.addEventListener('pointermove', onPointerMove, { passive: true });
+  renderer.domElement.addEventListener('pointermove', onPointerCanvasMove, { passive: true });
+  renderer.domElement.addEventListener('pointerleave', onCanvasPointerLeave);
+  renderer.domElement.addEventListener('click', onCanvasClick);
   window.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('scroll', syncScrollState, { passive: true });
   window.addEventListener('resize', onViewportChange);
@@ -1209,11 +1641,14 @@ const bootBlackholeDemo = () => {
       document.removeEventListener('mouseup', clearSelectionGuard, true);
       document.removeEventListener('astro:page-load', refreshPageBindings);
       window.removeEventListener('pointermove', onPointerMove);
+      renderer.domElement.removeEventListener('pointermove', onPointerCanvasMove);
+      renderer.domElement.removeEventListener('pointerleave', onCanvasPointerLeave);
+      renderer.domElement.removeEventListener('click', onCanvasClick);
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('scroll', syncScrollState);
       window.removeEventListener('resize', onViewportChange);
       nightWarningConfirm?.removeEventListener('click', dismissNightWarning);
-      keyboardOrbitControl.dispose();
+      keyboardMoveControl.dispose();
       renderer.dispose();
       mesh.geometry.dispose();
       material.dispose();

@@ -7,6 +7,13 @@ import { profile } from '../data/site';
 const pageTitle = profile.name;
 const projectsModule = await import('../../public/projects.json');
 const projects = projectsModule.default as { name: string; href: string }[];
+const friendsModule = await import('../../public/friend.json');
+const friends = friendsModule.default as {
+  name: string;
+  url: string;
+  type: 'cool' | 'cold' | 'warm' | 'hot';
+  description: string;
+}[];
 const latestPosts = (await getPublishedBlogEntries()).slice(0, 5);
 
 const aboutParagraphs = [
@@ -74,6 +81,24 @@ const aboutParagraphs = [
             <p>最近文章会展示在这里。</p>
           )
         }
+      </article>
+
+      <article class="blackhole-placeholder blackhole-friends-panel">
+        <span>Friends</span>
+        <h3>友联星系</h3>
+        <p>每一个友联都会成为环绕黑洞运行的一颗星球，性格类型决定它的地貌与温度。</p>
+        <ul class="blackhole-friend-list" aria-label="友联列表">
+          {
+            friends.map((friend) => (
+              <li>
+                <a class="blackhole-list-link" href={friend.url} target="_blank" rel="noreferrer">
+                  {friend.name}
+                </a>
+                <small>{friend.type}</small>
+              </li>
+            ))
+          }
+        </ul>
       </article>
     </div>
   </BlackholeScene>

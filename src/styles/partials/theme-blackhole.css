@@ -50,29 +50,76 @@ body.theme-blackhole .site-nav a.is-active {
   color: #000;
 }
 
+body.theme-stars {
+  color: #f1ede7;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(185, 145, 255, 0.08), transparent 26%),
+    radial-gradient(circle at 82% 14%, rgba(255, 196, 154, 0.08), transparent 24%),
+    radial-gradient(circle at 50% 120%, rgba(77, 142, 247, 0.12), transparent 38%),
+    #030507;
+}
+
+body.theme-stars::before {
+  opacity: 1;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 72%);
+  background-size: 100% 100%;
+  mask-image: none;
+}
+
+body.theme-stars,
+body.theme-stars * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+body.theme-stars .site-header {
+  background: rgba(4, 7, 10, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-stars .site-brand strong,
+body.theme-stars .site-brand small,
+body.theme-stars .footer-title,
+body.theme-stars .footer-copy,
+body.theme-stars .footer-links a,
+body.theme-stars .site-nav a {
+  color: #f1ede7;
+}
+
+body.theme-stars .site-nav a {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body.theme-stars .site-nav a.is-active {
+  background: #f1ede7;
+  color: #04070a;
+}
+
+.blackhole-global {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background: #000;
+}
+
+.blackhole-global,
+.blackhole-global * {
+  transform: translateZ(0);
+}
+
 .blackhole-page {
   width: 100%;
   margin: 0;
   padding: 0;
 }
 
-.blackhole-stage {
-  position: relative;
-  min-height: calc(100vh - 190px);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 30px;
-  background: #000;
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.38);
-}
-
-.blackhole-stage-fullscreen {
-  min-height: calc(100vh - 150px);
-}
-
 .blackhole-canvas {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .blackhole-canvas canvas {

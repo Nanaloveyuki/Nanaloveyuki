@@ -15,4 +15,10 @@ export default defineConfig({
   output: 'static',
   compressHTML: true,
   scopedStyleStrategy: 'where',
+  markdown: {
+    shikiConfig: {
+      theme: 'github-dark',
+      wrap: true,
+    },
+  },
 });

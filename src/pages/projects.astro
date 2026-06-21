@@ -1,42 +1,51 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { profile, projects } from '../data/site';
+import BlackholeScene from '../components/BlackholeScene.astro';
+import { profile, type Project } from '../data/site';
 
 const pageTitle = `${profile.name} | 项目展示`;
+const projectsModule = await import('../../public/projects.json');
+const projects = projectsModule.default as Project[];
 ---
 
 <BaseLayout
   title={pageTitle}
   description="这里展示我正在做或已经公开的一些项目。"
   pathname="/projects"
+  bodyClass="theme-blackhole"
+  showFooter={false}
 >
-  <main class="shell">
-    <section class="panel reveal">
-      <div class="page-heading">
-        <p class="eyebrow">Projects</p>
-        <h1>项目展示</h1>
-        <p>这里展示的是我愿意公开拿出来介绍、也持续在关注的项目。</p>
-      </div>
+  <BlackholeScene scene="projects" storyClass="blackhole-story-page">
+    <div class="blackhole-story-intro blackhole-story-intro-page">
+      <p class="blackhole-kicker">Projects</p>
+      <h1>项目</h1>
+      <p>公开展示的项目、正在投入的方向，以及我愿意继续做深的作品都会放在这里。</p>
+    </div>
 
-      <div class="project-grid">
-        {
-          projects.map((project) => (
-            <article class="project-card">
-              <span class="meta-label">{project.featured ? 'Featured' : 'Project'}</span>
-              <strong>{project.name}</strong>
-              <p>{project.summary}</p>
-              <ul class="pill-list">
-                {project.stack.map((item) => (
-                  <li>{item}</li>
-                ))}
-              </ul>
-              <a class="inline-link" href={project.href} target="_blank" rel="noreferrer">
-                查看仓库
+    <div class="blackhole-entry-list" aria-label="项目列表">
+      {
+        projects.map((project) => (
+          <article class="blackhole-entry" data-project-slug={project.slug}>
+            <p class="blackhole-entry-meta">{project.featured ? 'Featured Project' : 'Project'}</p>
+            <h2>
+              <a class="blackhole-title-link" href={project.href} target="_blank" rel="noreferrer">
+                {project.name}
               </a>
-            </article>
-          ))
-        }
-      </div>
-    </section>
-  </main>
+            </h2>
+            <p class="blackhole-entry-tagline">{project.tagline}</p>
+            <ul class="blackhole-tag-list" aria-label={`${project.name} 标签`}>
+              {project.tags.map((tag) => (
+                <li>{tag}</li>
+              ))}
+            </ul>
+            <p>{project.summary}</p>
+            <p class="blackhole-entry-stack">{project.stack.join(' / ')}</p>
+            <a class="blackhole-inline-link" href={project.href} target="_blank" rel="noreferrer">
+              查看仓库
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </BlackholeScene>
 </BaseLayout>

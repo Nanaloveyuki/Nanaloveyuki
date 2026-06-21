@@ -1,0 +1,22 @@
+[
+  {
+    "slug": "sealantern",
+    "name": "SeaLantern",
+    "tagline": "Minecraft 服务器管理工具",
+    "tags": ["Desktop App", "Minecraft", "Rust"],
+    "summary": "基于 Vue + Rust + Tauri2 的 Minecraft 开服器管理工具，提供一站式服务器管理体验，支持多平台部署和插件生态。",
+    "stack": ["Vue", "Rust", "Tauri2", "Minecraft"],
+    "href": "https://github.com/SeaLantern-Studio/SeaLantern",
+    "featured": true
+  },
+  {
+    "slug": "liteyuki-opensource-license",
+    "name": "Liteyuki Studio Open Source LICENSE",
+    "tagline": "团队开源许可整理仓库",
+    "tags": ["Writing", "License", "GitHub"],
+    "summary": "Liteyuki Studio 的开源协议仓库，用来整理和维护团队项目使用的许可文本。",
+    "stack": ["LICENSE", "GitHub", "Writing"],
+    "href": "https://github.com/LiteyukiStudio/OpenSourceLICENSE",
+    "featured": true
+  }
+]

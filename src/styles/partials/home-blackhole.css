@@ -3,15 +3,29 @@
   --story-contrast: 0;
   --risk-visibility: 0;
   position: relative;
-  min-height: 320svh;
+  min-height: 100svh;
   overflow-x: clip;
 }
 
-.blackhole-background {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background: #000;
+.blackhole-page-home {
+  min-height: 320svh;
+}
+
+.blackhole-page-projects,
+.blackhole-page-blog,
+.blackhole-page-tools {
+  min-height: 100svh;
+}
+
+.blackhole-page-projects .blackhole-story,
+.blackhole-page-blog .blackhole-story,
+.blackhole-page-tools .blackhole-story {
+  display: grid;
+  grid-template-columns: minmax(18vw, 1fr) minmax(0, 1.35fr);
+  column-gap: clamp(24px, 3vw, 54px);
+  align-items: start;
+  width: min(calc(100% - 56px), 1480px);
+  margin: 0 auto;
 }
 
 .blackhole-vignette {
@@ -25,7 +39,12 @@
 
 .blackhole-scroll-track {
   position: relative;
-  min-height: 220svh;
+  min-height: 320svh;
+}
+
+.blackhole-home-flow {
+  display: grid;
+  align-items: end;
 }
 
 .blackhole-story {
@@ -79,6 +98,7 @@
 }
 
 .blackhole-story h2,
+.blackhole-story h1,
 .blackhole-placeholder h3 {
   margin: 0;
   font-family: 'Fraunces', 'Noto Serif SC', serif;
@@ -91,8 +111,30 @@
   transition: opacity 180ms linear;
 }
 
+.blackhole-page-home .blackhole-story {
+  position: sticky;
+  top: 0;
+  display: grid;
+  align-content: end;
+  min-height: 100svh;
+  padding-top: 32svh;
+  padding-bottom: 12svh;
+}
+
 .blackhole-story-intro {
   max-width: 40rem;
+}
+
+.blackhole-page-home .blackhole-story-intro p {
+  max-width: 34rem;
+  margin: 14px 0 0;
+  line-height: 1.9;
+  color: rgba(
+    calc(245 - var(--story-contrast) * 116),
+    calc(239 - var(--story-contrast) * 120),
+    calc(232 - var(--story-contrast) * 124),
+    calc(0.9 + var(--story-contrast) * 0.06)
+  );
 }
 
 .blackhole-story h2 {
@@ -101,6 +143,15 @@
   text-shadow:
     0 12px 40px rgba(0, 0, 0, calc(0.26 + var(--story-contrast) * 0.34)),
     0 0 1px rgba(255, 255, 255, calc(0.12 - var(--story-contrast) * 0.1));
+}
+
+.blackhole-story h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5.4rem);
+  line-height: 0.96;
+  text-shadow:
+    0 14px 44px rgba(0, 0, 0, calc(0.28 + var(--story-contrast) * 0.34)),
+    0 0 1px rgba(255, 255, 255, calc(0.14 - var(--story-contrast) * 0.12));
 }
 
 .blackhole-story-intro p:last-child,
@@ -121,6 +172,227 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 28px;
   margin-top: 56px;
+}
+
+.blackhole-home-sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 56px;
+}
+
+.blackhole-link-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 18px 0 0;
+  list-style: none;
+}
+
+.blackhole-list-link {
+  display: inline-flex;
+  align-items: center;
+  color: rgb(
+    calc(245 - var(--story-contrast) * 118),
+    calc(239 - var(--story-contrast) * 122),
+    calc(232 - var(--story-contrast) * 128)
+  );
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    color 220ms ease;
+}
+
+.blackhole-list-link:hover {
+  opacity: 0.78;
+  transform: translateX(3px);
+}
+
+.blackhole-story-page {
+  min-height: auto;
+  padding-top: 10svh;
+  padding-left: 0;
+  padding-bottom: 14svh;
+  opacity: 1;
+}
+
+.blackhole-story-intro-page {
+  grid-column: 2;
+  max-width: 52rem;
+}
+
+.blackhole-story-intro-page p:last-child {
+  max-width: 38rem;
+}
+
+.blackhole-story-tools .blackhole-story-intro-page {
+  max-width: 40rem;
+}
+
+.blackhole-story-tools .blackhole-story-intro-page p:last-child {
+  max-width: 28rem;
+}
+
+.blackhole-entry-list {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 34px 40px;
+  width: min(100%, 100rem);
+  margin-top: 42px;
+}
+
+.blackhole-story-tools .blackhole-entry-list {
+  grid-template-columns: minmax(320px, 42rem);
+  width: 100%;
+  margin-top: 30px;
+}
+
+.blackhole-story-tools .blackhole-entry {
+  max-width: 42rem;
+}
+
+.blackhole-story-tools .blackhole-entry-tagline,
+.blackhole-story-tools .blackhole-entry > p:not(.blackhole-entry-meta):not(.blackhole-entry-stack) {
+  max-width: 30rem;
+}
+
+.blackhole-entry {
+  position: relative;
+  min-height: 0;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.blackhole-entry::before {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: min(120px, 32%);
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 233, 203, 0.86), rgba(255, 233, 203, 0));
+  content: '';
+}
+
+.blackhole-entry-meta,
+.blackhole-entry-stack {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.blackhole-entry-meta {
+  opacity: calc(0.78 + var(--story-contrast) * 0.1);
+}
+
+.blackhole-entry h2 {
+  margin-top: 14px;
+}
+
+.blackhole-title-link {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    opacity 180ms ease,
+    color 220ms ease,
+    text-shadow 220ms ease;
+}
+
+.blackhole-title-link:hover {
+  opacity: 0.8;
+}
+
+.blackhole-entry-tagline {
+  max-width: 34rem;
+  margin: 12px 0 0;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: rgba(
+    calc(231 - var(--story-contrast) * 92),
+    calc(220 - var(--story-contrast) * 94),
+    calc(207 - var(--story-contrast) * 96),
+    0.82
+  );
+}
+
+.blackhole-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 18px 0 0;
+  list-style: none;
+}
+
+.blackhole-tag-list li {
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(
+    calc(245 - var(--story-contrast) * 108),
+    calc(239 - var(--story-contrast) * 112),
+    calc(232 - var(--story-contrast) * 116),
+    0.92
+  );
+}
+
+.blackhole-entry > p:not(.blackhole-entry-meta):not(.blackhole-entry-stack) {
+  max-width: 38rem;
+  margin: 16px 0 0;
+  line-height: 1.92;
+  color: rgba(
+    calc(245 - var(--story-contrast) * 116),
+    calc(239 - var(--story-contrast) * 120),
+    calc(232 - var(--story-contrast) * 124),
+    calc(0.9 + var(--story-contrast) * 0.06)
+  );
+}
+
+.blackhole-entry-stack {
+  margin-top: 18px;
+  color: rgba(
+    calc(231 - var(--story-contrast) * 92),
+    calc(220 - var(--story-contrast) * 94),
+    calc(207 - var(--story-contrast) * 96),
+    0.78
+  );
+}
+
+.blackhole-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  color: rgb(
+    calc(245 - var(--story-contrast) * 118),
+    calc(239 - var(--story-contrast) * 122),
+    calc(232 - var(--story-contrast) * 128)
+  );
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    color 220ms ease;
+}
+
+.blackhole-inline-link::after {
+  content: '->';
+}
+
+.blackhole-inline-link:hover {
+  opacity: 0.78;
+  transform: translateX(3px);
 }
 
 .blackhole-placeholder {

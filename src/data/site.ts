@@ -28,11 +28,19 @@ export type Contact = {
 };
 
 export type Project = {
+  slug: string;
   name: string;
+  tagline: string;
+  tags: string[];
   summary: string;
   stack: string[];
   href: string;
   featured?: boolean;
+};
+
+export type ToolLink = {
+  label: string;
+  href: string;
 };
 
 export type AboutSection = {
@@ -69,6 +77,7 @@ export const navLinks: NavItem[] = [
   { label: '关于我', href: '/#about' },
   { label: '项目', href: '/projects' },
   { label: '博客', href: '/blog' },
+  { label: '工具', href: '/tools' },
 ];
 
 export const socialLinks: NavItem[] = [
@@ -147,6 +156,13 @@ export const sections: Section[] = [
         tag: 'Entry',
         accent: '#4bb7a8',
       },
+      {
+        label: '工具导航',
+        href: '/tools',
+        description: '查看我公开整理出来的一些实用网页入口。',
+        tag: 'Tools',
+        accent: '#d4a95f',
+      },
     ],
   },
   {
@@ -179,21 +195,10 @@ export const sections: Section[] = [
   },
 ];
 
-export const projects: Project[] = [
+export const toolLinks: ToolLink[] = [
   {
-    name: 'SeaLantern',
-    summary:
-      '基于 Vue + Rust + Tauri2 的 Minecraft 开服器管理工具，提供一站式服务器管理体验，支持多平台部署和插件生态。',
-    stack: ['Vue', 'Rust', 'Tauri2', 'Minecraft'],
-    href: 'https://github.com/SeaLantern-Studio/SeaLantern',
-    featured: true,
-  },
-  {
-    name: 'Liteyuki Studio Open Source LICENSE',
-    summary: 'Liteyuki Studio 的开源协议仓库，用来整理和维护团队项目使用的许可文本。',
-    stack: ['LICENSE', 'GitHub', 'Writing'],
-    href: 'https://github.com/LiteyukiStudio/OpenSourceLICENSE',
-    featured: true,
+    label: 'OpenList',
+    href: 'https://openlist.naloveyuki.top',
   },
 ];
 

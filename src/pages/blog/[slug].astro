@@ -1,0 +1,137 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { render } from 'astro:content';
+import { formatBlogDate, getPublishedBlogEntries } from '../../data/blog';
+import { profile } from '../../data/site';
+
+export async function getStaticPaths() {
+  const posts = await getPublishedBlogEntries();
+
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const pageTitle = `${post.data.title} | ${profile.name}`;
+const pathname = `/blog/${post.id}/`;
+const relatedPosts = (await getPublishedBlogEntries()).filter((entry) => entry.id !== post.id).slice(0, 5);
+---
+
+<BaseLayout
+  title={pageTitle}
+  description={post.data.des || `${post.data.title} - ${profile.name} 的文章记录。`}
+  pathname={pathname}
+  bodyClass="theme-blackhole theme-stars"
+  showFooter={false}
+>
+  <main class="stars-page stars-article-page shell" data-blackhole-page data-blackhole-scene="blog">
+    <article class="stars-article-shell">
+      <header class="stars-article-header">
+        <p class="eyebrow">Article</p>
+        <h1>{post.data.title}</h1>
+        <div class="stars-article-meta">
+          <span>{formatBlogDate(post.data.time)}</span>
+          {post.data.tags.length > 0 && (
+            <ul class="stars-tag-list" aria-label={`${post.data.title} 标签`}>
+              {post.data.tags.map((tag) => (
+                <li>{tag}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </header>
+
+      <div class="stars-article-layout">
+        <div class="article-body" data-article-body>
+          <Content />
+        </div>
+
+        <aside class="stars-article-sidebar" aria-label="文章信息">
+          <section class="stars-sidebar-block">
+            <p class="stars-sidebar-label">标题</p>
+            <h2>{post.data.title}</h2>
+          </section>
+
+          <section class="stars-sidebar-block">
+            <p class="stars-sidebar-label">时间</p>
+            <p>{formatBlogDate(post.data.time)}</p>
+          </section>
+
+          {post.data.tags.length > 0 && (
+            <section class="stars-sidebar-block">
+              <p class="stars-sidebar-label">标签</p>
+              <ul class="stars-tag-list" aria-label="文章标签">
+                {post.data.tags.map((tag) => (
+                  <li>{tag}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {relatedPosts.length > 0 && (
+            <section class="stars-sidebar-block">
+              <p class="stars-sidebar-label">最近文章</p>
+              <ul class="blackhole-link-list" aria-label="最近文章">
+                {relatedPosts.map((entry) => (
+                  <li>
+                    <a class="stars-sidebar-link" href={`/blog/${entry.id}/`}>
+                      {entry.data.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </aside>
+      </div>
+    </article>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const articleBody = document.querySelector('[data-article-body]');
+      if (!articleBody) return;
+
+      const codeBlocks = Array.from(articleBody.querySelectorAll('pre'));
+
+      codeBlocks.forEach((pre, index) => {
+        if (pre.dataset.copyReady === 'true') return;
+        pre.dataset.copyReady = 'true';
+
+        const code = pre.querySelector('code');
+        if (!code) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'code-copy-button';
+        button.setAttribute('aria-label', '复制代码');
+        button.setAttribute('data-copy-state', 'idle');
+        button.innerHTML = '<span class="code-copy-button__label">复制</span>';
+
+        button.addEventListener('click', async () => {
+          const text = code.textContent ?? '';
+          if (!text.trim()) return;
+
+          try {
+            await navigator.clipboard.writeText(text);
+            button.dataset.copyState = 'copied';
+            button.querySelector('.code-copy-button__label').textContent = '已复制';
+          } catch {
+            button.dataset.copyState = 'error';
+            button.querySelector('.code-copy-button__label').textContent = '复制失败';
+          }
+
+          window.setTimeout(() => {
+            button.dataset.copyState = 'idle';
+            button.querySelector('.code-copy-button__label').textContent = '复制';
+          }, 1800 + index * 20);
+        });
+
+        pre.appendChild(button);
+      });
+    })();
+  </script>
+</BaseLayout>

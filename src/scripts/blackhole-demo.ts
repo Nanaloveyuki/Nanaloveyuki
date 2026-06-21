@@ -5,8 +5,44 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 
-const HOST_SELECTOR = '[data-blackhole-demo]';
+const HOST_SELECTOR = '[data-blackhole-root]';
+const PAGE_SELECTOR = '[data-blackhole-page]';
 const SCROLL_TRACK_SELECTOR = '[data-blackhole-scroll-track]';
+const HEADER_SELECTOR = '[data-site-header]';
+const BLACKHOLE_BODY_CLASS = 'theme-blackhole';
+
+type SceneName = 'home' | 'projects' | 'blog' | 'tools';
+type RenderQuality = 'low' | 'medium';
+
+type PerformanceConfig = {
+  resolution: number;
+  quality: RenderQuality;
+};
+
+type SceneTarget = {
+  distance: number;
+  fov: number;
+  orbit: boolean;
+  dragEnabled: boolean;
+  dragRecenter: number;
+  keyboardRecenter: number;
+  keyboardEnabled: boolean;
+  autoYaw: number;
+  autoPitch: number;
+  forwardOffset: number;
+  verticalOffset: number;
+  rightOffset: number;
+  driftAmplitude: number;
+  starYawSpeed: number;
+  storyReveal: number;
+  riskVisibility: number;
+};
+
+type BlackholeWindow = Window & {
+  __BLACKHOLE_DEMO_INITIALIZED__?: boolean;
+  __BLACKHOLE_DEMO_REFRESH__?: () => void;
+  __BLACKHOLE_DEMO_HOST__?: HTMLElement | null;
+};
 
 class Observer extends THREE.PerspectiveCamera {
   time = 0;
@@ -83,7 +119,6 @@ class Observer extends THREE.PerspectiveCamera {
 }
 
 class CameraDragControls {
-  private domElement: HTMLElement;
   private lookSpeed = 0.005;
   private offsetX = 0;
   private offsetY = 0;
@@ -92,6 +127,7 @@ class CameraDragControls {
   private mouseDragOn = false;
   private viewHalfX = 0;
   private viewHalfY = 0;
+  enabled = true;
   yaw = 0;
   pitch = 0;
 
@@ -99,20 +135,34 @@ class CameraDragControls {
     return this.mouseDragOn;
   }
 
-  constructor(domElement: HTMLElement) {
-    this.domElement = domElement;
-    this.domElement.setAttribute('tabindex', '-1');
+  constructor() {
     this.addMouseEventHandlers();
     this.handleResize();
   }
 
   handleResize() {
-    this.viewHalfX = this.domElement.offsetWidth / 2;
-    this.viewHalfY = this.domElement.offsetHeight / 2;
+    this.viewHalfX = window.innerWidth / 2;
+    this.viewHalfY = window.innerHeight / 2;
+  }
+
+  setEnabled(next: boolean) {
+    this.enabled = next;
+
+    if (!next) {
+      this.mouseDragOn = false;
+      this.offsetX = 0;
+      this.offsetY = 0;
+    }
   }
 
   update(recenterStrength: number) {
-    if (this.mouseDragOn) {
+    if (!this.enabled && this.mouseDragOn) {
+      this.mouseDragOn = false;
+      this.offsetX = 0;
+      this.offsetY = 0;
+    }
+
+    if (this.enabled && this.mouseDragOn) {
       this.yaw += this.lookSpeed * this.offsetX;
       this.pitch += this.lookSpeed * this.offsetY;
       this.pitch = clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
@@ -128,13 +178,17 @@ class CameraDragControls {
   }
 
   private addMouseEventHandlers() {
-    this.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
+    window.addEventListener('contextmenu', (event) => {
+      if (this.mouseDragOn) {
+        event.preventDefault();
+      }
+    });
 
-    this.domElement.addEventListener('mousemove', (event) => {
+    window.addEventListener('mousemove', (event) => {
       if (!this.mouseDragOn) return;
 
-      const newX = event.pageX - this.domElement.offsetLeft - this.viewHalfX;
-      const newY = event.pageY - this.domElement.offsetTop - this.viewHalfY;
+      const newX = event.clientX - this.viewHalfX;
+      const newY = event.clientY - this.viewHalfY;
 
       this.offsetX = newX - this.lastX;
       this.offsetY = newY - this.lastY;
@@ -142,28 +196,34 @@ class CameraDragControls {
       this.lastY = newY;
     });
 
-    this.domElement.addEventListener('mousedown', (event) => {
-      if (event.button !== 0 || event.altKey) return;
+    window.addEventListener('mousedown', (event) => {
+      if (!this.enabled || event.button !== 0 || event.altKey) return;
 
-      this.domElement.focus();
+      if (
+        event.target instanceof Element &&
+        event.target.closest('a, button, input, textarea, select, summary, [data-no-blackhole-drag]')
+      ) {
+        return;
+      }
+
       event.preventDefault();
-      event.stopPropagation();
 
       this.mouseDragOn = true;
-      this.lastX = event.pageX - this.domElement.offsetLeft - this.viewHalfX;
-      this.lastY = event.pageY - this.domElement.offsetTop - this.viewHalfY;
+      this.lastX = event.clientX - this.viewHalfX;
+      this.lastY = event.clientY - this.viewHalfY;
     });
 
-    this.domElement.addEventListener('mouseup', (event) => {
+    window.addEventListener('mouseup', (event) => {
+      if (!this.mouseDragOn) return;
+
       event.preventDefault();
-      event.stopPropagation();
 
       this.mouseDragOn = false;
       this.offsetX = 0;
       this.offsetY = 0;
     });
 
-    this.domElement.addEventListener('mouseleave', () => {
+    window.addEventListener('mouseleave', () => {
       this.mouseDragOn = false;
       this.offsetX = 0;
       this.offsetY = 0;
@@ -418,9 +478,6 @@ void main() {
 }
 `;
 
-const host = document.querySelector<HTMLElement>(HOST_SELECTOR);
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const smoothstep = (start: number, end: number, value: number) => {
@@ -428,13 +485,62 @@ const smoothstep = (start: number, end: number, value: number) => {
   return x * x * (3 - 2 * x);
 };
 
-if (host) {
-  const canvasMount = host.querySelector<HTMLElement>('[data-blackhole-canvas]');
-  const scrollTrack = host.querySelector<HTMLElement>(SCROLL_TRACK_SELECTOR);
+const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
+  resolution: 1.0,
+  quality: 'medium',
+};
 
-  if (!canvasMount || !scrollTrack) {
+const getMeasuredPerformanceTarget = (averageFps: number): PerformanceConfig => {
+  if (averageFps >= 46) {
+    return { resolution: 1.0, quality: 'medium' };
+  }
+
+  if (averageFps >= 32) {
+    return { resolution: 0.75, quality: 'medium' };
+  }
+
+  return { resolution: 0.75, quality: 'low' };
+};
+
+const bootBlackholeDemo = () => {
+  const blackholeWindow = window as BlackholeWindow;
+  const host = document.querySelector<HTMLElement>(HOST_SELECTOR);
+
+  if (!host) {
+    blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = false;
+    blackholeWindow.__BLACKHOLE_DEMO_HOST__ = null;
+    return;
+  }
+
+  const canvasAlreadyMounted = !!host.querySelector('canvas');
+
+  if (
+    blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ &&
+    blackholeWindow.__BLACKHOLE_DEMO_HOST__ === host &&
+    canvasAlreadyMounted
+  ) {
+    blackholeWindow.__BLACKHOLE_DEMO_REFRESH__?.();
+    return;
+  }
+
+  blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = true;
+  blackholeWindow.__BLACKHOLE_DEMO_HOST__ = host;
+
+  const canvasMount = host.querySelector<HTMLElement>('[data-blackhole-canvas]');
+  let pageHost = document.querySelector<HTMLElement>(PAGE_SELECTOR);
+  let scrollTrack = pageHost?.querySelector<HTMLElement>(SCROLL_TRACK_SELECTOR) ?? null;
+  let siteHeader = document.querySelector<HTMLElement>(HEADER_SELECTOR);
+
+  if (!canvasMount) {
     throw new Error('Missing blackhole demo mount points');
   }
+
+  blackholeWindow.__BLACKHOLE_DEMO_REFRESH__ = () => {
+    pageHost = document.querySelector<HTMLElement>(PAGE_SELECTOR);
+    scrollTrack = pageHost?.querySelector<HTMLElement>(SCROLL_TRACK_SELECTOR) ?? null;
+    siteHeader = document.querySelector<HTMLElement>(HEADER_SELECTOR);
+    setDemoSize();
+  };
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setClearColor(0x000000, 1.0);
@@ -479,10 +585,7 @@ if (host) {
       );
     });
 
-  const performanceConfig = {
-    resolution: prefersReducedMotion.matches ? 0.75 : 1.0,
-    quality: 'medium' as 'low' | 'medium' | 'high',
-  };
+  const performanceConfig = { ...DEFAULT_PERFORMANCE_CONFIG };
 
   const bloomConfig = {
     strength: 0.78,
@@ -522,18 +625,16 @@ if (host) {
     disk_texture: { value: null as THREE.Texture | null },
   };
 
-  const getShaderDefines = (quality: 'low' | 'medium' | 'high') => {
+  const getShaderDefines = (quality: RenderQuality) => {
     switch (quality) {
       case 'low':
         return '#define STEP 0.1\n#define NSTEPS 300\n';
-      case 'high':
-        return '#define STEP 0.02\n#define NSTEPS 1000\n';
       default:
         return '#define STEP 0.05\n#define NSTEPS 600\n';
     }
   };
 
-  const material = new THREE.ShaderMaterial({
+  let material = new THREE.ShaderMaterial({
     uniforms,
     vertexShader,
     fragmentShader: `${getShaderDefines(performanceConfig.quality)}${fragmentShader}`,
@@ -550,8 +651,9 @@ if (host) {
   scene.add(observer);
   const observerBaseUp = observer.up.clone();
 
-  const cameraControl = new CameraDragControls(host);
+  const cameraControl = new CameraDragControls();
   const keyboardOrbitControl = new KeyboardOrbitControls();
+  const getSceneName = () => (pageHost?.dataset.blackholeScene as SceneName | undefined) ?? 'home';
 
   const state = {
     lastFrame: 0,
@@ -559,6 +661,11 @@ if (host) {
     rafId: 0,
     scrollProgress: 0,
     readabilityMix: 0,
+    lastScrollY: window.scrollY,
+    headerPinned: true,
+    performanceSampleTime: 0,
+    performanceSampleFrames: 0,
+    performanceSettled: false,
   };
 
   const origin = new THREE.Vector3(0, 0, 0);
@@ -573,6 +680,80 @@ if (host) {
   const rotatedPosition = new THREE.Vector3();
   const rotatedVelocity = new THREE.Vector3();
 
+  const getSceneTarget = (): SceneTarget => {
+    const sceneName = getSceneName();
+
+    if (sceneName === 'blog') {
+      return {
+        distance: 7.2,
+        fov: 58,
+        orbit: true,
+        dragEnabled: false,
+        dragRecenter: 0.18,
+        keyboardRecenter: 0.18,
+        keyboardEnabled: false,
+        autoYaw: Math.PI,
+        autoPitch: -0.04,
+        forwardOffset: -18,
+        verticalOffset: 0.18,
+        rightOffset: 0,
+        driftAmplitude: 0.015,
+        starYawSpeed: 0.015,
+        storyReveal: 1,
+        riskVisibility: 0,
+      };
+    }
+
+    if (sceneName !== 'home') {
+      return {
+        distance: 2.74,
+        fov: 78,
+        orbit: true,
+        dragEnabled: false,
+        dragRecenter: 0.16,
+        keyboardRecenter: 0.18,
+        keyboardEnabled: false,
+        autoYaw: 1.82,
+        autoPitch: 0.005,
+        forwardOffset: 0.08,
+        verticalOffset: 0,
+        rightOffset: 1.72,
+        driftAmplitude: 0.035,
+        starYawSpeed: 0.006,
+        storyReveal: 1,
+        riskVisibility: 0,
+      };
+    }
+
+    const approachProgress = smoothstep(0.03, 0.68, state.scrollProgress);
+    const emergeProgress = smoothstep(0.68, 0.92, state.scrollProgress);
+    const recenterProgress = smoothstep(0.08, 0.34, state.scrollProgress);
+    const starfieldRotation = Math.max(emergeProgress, smoothstep(0.8, 1, state.scrollProgress));
+    const manualOrbitAllowed = state.scrollProgress < 0.06;
+    const horizonViewProgress = smoothstep(0.14, 0.76, state.scrollProgress);
+
+    return {
+      distance: THREE.MathUtils.lerp(10, 1.52, approachProgress),
+      fov: THREE.MathUtils.lerp(90, 104, approachProgress * (1 - emergeProgress * 0.5)),
+      orbit: state.scrollProgress < 0.04,
+      dragEnabled: true,
+      dragRecenter: recenterProgress * 0.12,
+      keyboardRecenter: manualOrbitAllowed ? 0 : recenterProgress * 0.12,
+      keyboardEnabled: manualOrbitAllowed,
+      autoYaw: THREE.MathUtils.lerp(0, 1.05, horizonViewProgress),
+      autoPitch: THREE.MathUtils.lerp(0, -0.2, smoothstep(0.2, 0.84, state.scrollProgress)),
+      forwardOffset: THREE.MathUtils.lerp(0, 14, emergeProgress),
+      verticalOffset: THREE.MathUtils.lerp(0, -0.85, emergeProgress),
+      rightOffset: 0,
+      driftAmplitude: 0.72 * starfieldRotation,
+      starYawSpeed: 0.08 * starfieldRotation,
+      storyReveal: smoothstep(0.72, 0.96, state.scrollProgress),
+      riskVisibility:
+        smoothstep(0.22, 0.38, state.scrollProgress) *
+        (1 - smoothstep(0.56, 0.72, state.scrollProgress)),
+    };
+  };
+
   const setDemoSize = () => {
     const width = Math.max(canvasMount.clientWidth, 1);
     const height = Math.max(canvasMount.clientHeight, 1);
@@ -586,32 +767,110 @@ if (host) {
     uniforms.resolution.value.set(width * resolutionScale, height * resolutionScale);
   };
 
-  const syncScrollState = () => {
-    const maxTravel = Math.max(scrollTrack.offsetHeight - window.innerHeight, 1);
-    const scrolled = clamp(-scrollTrack.getBoundingClientRect().top, 0, maxTravel);
-    state.scrollProgress = scrolled / maxTravel;
+  const applyPerformanceConfig = (nextConfig: PerformanceConfig) => {
+    const qualityChanged = performanceConfig.quality !== nextConfig.quality;
+    const resolutionChanged = performanceConfig.resolution !== nextConfig.resolution;
 
-    host.style.setProperty(
+    if (!qualityChanged && !resolutionChanged) {
+      state.performanceSettled = true;
+      return;
+    }
+
+    performanceConfig.quality = nextConfig.quality;
+    performanceConfig.resolution = nextConfig.resolution;
+
+    if (qualityChanged) {
+      const nextMaterial = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader,
+        fragmentShader: `${getShaderDefines(performanceConfig.quality)}${fragmentShader}`,
+      });
+
+      mesh.material = nextMaterial;
+      material.dispose();
+      material = nextMaterial;
+    }
+
+    if (qualityChanged || resolutionChanged) {
+      setDemoSize();
+    }
+
+    state.performanceSettled = true;
+  };
+
+  const samplePerformance = (delta: number) => {
+    if (state.performanceSettled) {
+      return;
+    }
+
+    state.performanceSampleTime += delta;
+    state.performanceSampleFrames += 1;
+
+    if (state.performanceSampleTime < 5) {
+      return;
+    }
+
+    const averageFps = state.performanceSampleFrames / state.performanceSampleTime;
+    applyPerformanceConfig(getMeasuredPerformanceTarget(averageFps));
+  };
+
+  const syncScrollState = () => {
+    if (scrollTrack) {
+      const maxTravel = Math.max(scrollTrack.offsetHeight - window.innerHeight, 1);
+      const scrolled = clamp(-scrollTrack.getBoundingClientRect().top, 0, maxTravel);
+      state.scrollProgress = scrolled / maxTravel;
+    } else {
+      state.scrollProgress = 0;
+    }
+
+    pageHost?.style.setProperty(
       '--story-reveal',
       smoothstep(0.72, 0.96, state.scrollProgress).toFixed(4),
     );
-    host.style.setProperty(
+    pageHost?.style.setProperty(
       '--risk-visibility',
       (
         smoothstep(0.22, 0.38, state.scrollProgress) *
         (1 - smoothstep(0.56, 0.72, state.scrollProgress))
       ).toFixed(4),
     );
+
+    if (siteHeader) {
+      const currentScrollY = window.scrollY;
+      const deltaY = currentScrollY - state.lastScrollY;
+
+      if (currentScrollY < 24 || deltaY < -4) {
+        state.headerPinned = true;
+      } else if (deltaY > 6 && currentScrollY > 120) {
+        state.headerPinned = false;
+      }
+
+      siteHeader.classList.toggle('is-hidden', !state.headerPinned);
+      state.lastScrollY = currentScrollY;
+    }
+  };
+
+  const onPointerMove = (event: PointerEvent) => {
+    if (!siteHeader) return;
+
+    if (event.clientY <= 64) {
+      state.headerPinned = true;
+      siteHeader.classList.remove('is-hidden');
+    }
   };
 
   const onWheel = (event: WheelEvent) => {
+    if (getSceneName() !== 'home') return;
+
     if (event.ctrlKey) return;
 
     const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
     if (maxScroll <= 0) return;
 
     const distanceFactor = clamp((observer.distance - 1.52) / (10 - 1.52), 0, 1);
-    const scrollMultiplier = THREE.MathUtils.lerp(0.34, 1, Math.sqrt(distanceFactor));
+    const storyProgressBoost = THREE.MathUtils.lerp(0.9, 1.8, smoothstep(0.52, 0.94, state.scrollProgress));
+    const baseScrollMultiplier = THREE.MathUtils.lerp(0.34, 1.06, Math.sqrt(distanceFactor));
+    const scrollMultiplier = baseScrollMultiplier * storyProgressBoost;
     const nextScroll = clamp(window.scrollY + event.deltaY * scrollMultiplier, 0, maxScroll);
 
     if (nextScroll === window.scrollY) return;
@@ -621,39 +880,30 @@ if (host) {
   };
 
   const updatePresentation = (delta: number) => {
-    const approachProgress = smoothstep(0.03, 0.68, state.scrollProgress);
-    const emergeProgress = smoothstep(0.68, 0.92, state.scrollProgress);
-    const recenterProgress = smoothstep(0.08, 0.34, state.scrollProgress);
-    const starfieldRotation = Math.max(emergeProgress, smoothstep(0.8, 1, state.scrollProgress));
-    const manualOrbitAllowed = state.scrollProgress < 0.06;
-    const horizonViewProgress = smoothstep(0.14, 0.76, state.scrollProgress);
-    const autoOrbitYaw = THREE.MathUtils.lerp(0, 1.05, horizonViewProgress);
-    const autoOrbitPitch = THREE.MathUtils.lerp(
-      0,
-      -0.2,
-      smoothstep(0.2, 0.84, state.scrollProgress),
-    );
+    const target = getSceneTarget();
+    const sceneBlend = clamp(1 - Math.exp(-delta * 5.2), 0.045, 0.2);
 
-    cameraConfig.distance = THREE.MathUtils.lerp(10, 1.52, approachProgress);
-    cameraConfig.fov = THREE.MathUtils.lerp(90, 104, approachProgress * (1 - emergeProgress * 0.5));
-    cameraConfig.orbit = state.scrollProgress < 0.04;
+    cameraConfig.distance = THREE.MathUtils.lerp(cameraConfig.distance, target.distance, sceneBlend);
+    cameraConfig.fov = THREE.MathUtils.lerp(cameraConfig.fov, target.fov, sceneBlend);
+    cameraConfig.orbit = target.orbit;
 
     observer.distance = cameraConfig.distance;
     observer.fov = cameraConfig.fov;
 
-    cameraControl.update(recenterProgress * 0.12);
+    cameraControl.setEnabled(target.dragEnabled);
+    cameraControl.update(target.dragRecenter);
     keyboardOrbitControl.update(
       delta,
       observer.distance,
-      manualOrbitAllowed,
-      manualOrbitAllowed ? 0 : recenterProgress * 0.12,
+      target.keyboardEnabled,
+      target.keyboardRecenter,
     );
 
     orbitUpAxis.copy(observerBaseUp).normalize();
     rotatedPosition.copy(observer.position);
     rotatedVelocity.copy(observer.velocity);
 
-    orbitYawQuaternion.setFromAxisAngle(orbitUpAxis, keyboardOrbitControl.yaw + autoOrbitYaw);
+    orbitYawQuaternion.setFromAxisAngle(orbitUpAxis, keyboardOrbitControl.yaw + target.autoYaw);
     rotatedPosition.applyQuaternion(orbitYawQuaternion);
     rotatedVelocity.applyQuaternion(orbitYawQuaternion);
 
@@ -661,7 +911,7 @@ if (host) {
     if (orbitPitchAxis.lengthSq() > 0) {
       orbitPitchQuaternion.setFromAxisAngle(
         orbitPitchAxis,
-        keyboardOrbitControl.pitch + autoOrbitPitch,
+        keyboardOrbitControl.pitch + target.autoPitch,
       );
       rotatedPosition.applyQuaternion(orbitPitchQuaternion);
       rotatedVelocity.applyQuaternion(orbitPitchQuaternion);
@@ -678,16 +928,15 @@ if (host) {
     baseForward.copy(origin).sub(observer.position).normalize();
     right.crossVectors(baseForward, upVector).normalize();
 
-    const forwardOffset = THREE.MathUtils.lerp(0, 14, emergeProgress);
-    const verticalOffset = THREE.MathUtils.lerp(0, -0.85, emergeProgress);
-    const driftOffset = Math.sin(state.time * 0.18) * 0.72 * starfieldRotation;
-    const starYawOffset = state.time * 0.08 * starfieldRotation;
-    const yawOffset = cameraControl.yaw * (1 - recenterProgress * 0.82);
-    const pitchOffset = cameraControl.pitch * (1 - recenterProgress * 0.82);
+    const driftOffset = target.rightOffset + Math.sin(state.time * 0.18) * target.driftAmplitude;
+    const starYawOffset = state.time * target.starYawSpeed;
+    const yawInfluence = target.dragEnabled ? 1 : 0;
+    const yawOffset = cameraControl.yaw * yawInfluence;
+    const pitchOffset = cameraControl.pitch * yawInfluence;
 
     lookTarget.copy(origin);
-    lookTarget.addScaledVector(baseForward, forwardOffset);
-    lookTarget.addScaledVector(upVector, verticalOffset);
+    lookTarget.addScaledVector(baseForward, target.forwardOffset);
+    lookTarget.addScaledVector(upVector, target.verticalOffset);
     lookTarget.addScaledVector(right, driftOffset);
 
     lookTarget.sub(observer.position);
@@ -705,6 +954,8 @@ if (host) {
     }
 
     observer.direction.copy(lookTarget.normalize());
+    pageHost?.style.setProperty('--story-reveal', target.storyReveal.toFixed(4));
+    pageHost?.style.setProperty('--risk-visibility', target.riskVisibility.toFixed(4));
   };
 
   const updateUniforms = () => {
@@ -733,6 +984,7 @@ if (host) {
   };
 
   const updateReadableContrast = () => {
+    const sceneName = getSceneName();
     const horizonExposure = smoothstep(0.12, 0.72, state.scrollProgress);
     const starfieldExposure = smoothstep(0.74, 0.96, state.scrollProgress);
     const lateralGlow = clamp(
@@ -741,14 +993,34 @@ if (host) {
       1,
     );
     const pitchGlow = clamp(Math.abs(keyboardOrbitControl.pitch + cameraControl.pitch) / 0.9, 0, 1);
-    const targetMix = clamp(
-      horizonExposure * 0.72 + starfieldExposure * 0.2 + lateralGlow * 0.36 + pitchGlow * 0.24,
-      0,
-      1,
-    );
+    const targetMix =
+      sceneName === 'home'
+        ? clamp(
+            horizonExposure * 0.72 + starfieldExposure * 0.2 + lateralGlow * 0.36 + pitchGlow * 0.24,
+            0,
+            1,
+          )
+        : clamp(0.34 + lateralGlow * 0.46 + pitchGlow * 0.28, 0.28, 0.92);
 
-    state.readabilityMix = THREE.MathUtils.lerp(state.readabilityMix, targetMix, 0.14);
-    host.style.setProperty('--story-contrast', state.readabilityMix.toFixed(4));
+    state.readabilityMix = THREE.MathUtils.lerp(
+      state.readabilityMix,
+      targetMix,
+      sceneName === 'home' ? 0.14 : 0.18,
+    );
+    pageHost?.style.setProperty('--story-contrast', state.readabilityMix.toFixed(4));
+  };
+
+  const refreshPageBindings = () => {
+    const wantsBlackholeShell = document.body.classList.contains(BLACKHOLE_BODY_CLASS);
+
+    if (!wantsBlackholeShell) {
+      document.body.classList.add(BLACKHOLE_BODY_CLASS);
+    }
+
+    blackholeWindow.__BLACKHOLE_DEMO_REFRESH__?.();
+    syncScrollState();
+    updateReadableContrast();
+    setDemoSize();
   };
 
   const tick = (timestamp: number) => {
@@ -765,6 +1037,7 @@ if (host) {
     updateUniforms();
     composer.render();
     updateReadableContrast();
+    samplePerformance(delta);
 
     state.rafId = window.requestAnimationFrame(tick);
   };
@@ -829,6 +1102,8 @@ if (host) {
   document.addEventListener('visibilitychange', onVisibilityChange);
   document.addEventListener('mousedown', selectionGuard, true);
   document.addEventListener('mouseup', clearSelectionGuard, true);
+  document.addEventListener('astro:page-load', refreshPageBindings);
+  window.addEventListener('pointermove', onPointerMove, { passive: true });
   window.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('scroll', syncScrollState, { passive: true });
   window.addEventListener('resize', onViewportChange);
@@ -846,6 +1121,8 @@ if (host) {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       document.removeEventListener('mousedown', selectionGuard, true);
       document.removeEventListener('mouseup', clearSelectionGuard, true);
+      document.removeEventListener('astro:page-load', refreshPageBindings);
+      window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('scroll', syncScrollState);
       window.removeEventListener('resize', onViewportChange);
@@ -854,7 +1131,19 @@ if (host) {
       mesh.geometry.dispose();
       material.dispose();
       textures.forEach((texture) => texture?.dispose());
+      if (renderer.domElement.parentElement === canvasMount) {
+        canvasMount.removeChild(renderer.domElement);
+      }
+      blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = false;
+      blackholeWindow.__BLACKHOLE_DEMO_REFRESH__ = undefined;
+      blackholeWindow.__BLACKHOLE_DEMO_HOST__ = null;
     },
     { once: true },
   );
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootBlackholeDemo, { once: true });
+} else {
+  bootBlackholeDemo();
 }

@@ -5,6 +5,16 @@
   backdrop-filter: blur(18px);
   background: rgba(255, 247, 239, 0.7);
   border-bottom: 1px solid rgba(62, 39, 35, 0.08);
+  transition:
+    transform 220ms ease,
+    opacity 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease;
+}
+
+.site-header.is-hidden {
+  transform: translateY(calc(-100% + 10px));
+  opacity: 0.18;
 }
 
 .site-header-inner,

@@ -1,0 +1,46 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import BlackholeScene from '../components/BlackholeScene.astro';
+import { profile } from '../data/site';
+
+const pageTitle = `${profile.name} | 工具导航`;
+const toolsModule = await import('../../public/tools.json');
+const tools = Object.entries(toolsModule.default as Record<string, string>).map(([label, href]) => ({
+  label,
+  href,
+}));
+---
+
+<BaseLayout
+  title={pageTitle}
+  description="这里整理了我公开使用或长期保留的一些网页工具入口。"
+  pathname="/tools"
+  bodyClass="theme-blackhole"
+  showFooter={false}
+>
+  <BlackholeScene scene="tools" storyClass="blackhole-story-page blackhole-story-tools">
+    <div class="blackhole-story-intro blackhole-story-intro-page">
+      <p class="blackhole-kicker">Tools</p>
+      <h1>工具</h1>
+    </div>
+
+    <div class="blackhole-entry-list" aria-label="工具列表">
+      {
+        tools.map((tool) => (
+          <article class="blackhole-entry">
+            <p class="blackhole-entry-meta">Tool Link</p>
+            <h2>
+              <a class="blackhole-title-link" href={tool.href} target="_blank" rel="noreferrer">
+                {tool.label}
+              </a>
+            </h2>
+            <p>{tool.href}</p>
+            <a class="blackhole-inline-link" href={tool.href} target="_blank" rel="noreferrer">
+              打开链接
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </BlackholeScene>
+</BaseLayout>

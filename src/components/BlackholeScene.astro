@@ -1,0 +1,35 @@
+---
+type Props = {
+  scene: 'home' | 'projects' | 'blog' | 'tools';
+  storyId?: string;
+  storyClass?: string;
+  riskLines?: string[];
+};
+
+const {
+  scene,
+  storyId,
+  storyClass = '',
+  riskLines = ['可能会引起光敏性癫痫症状发作', '如有不适请尽快停止滚动或离开页面'],
+} = Astro.props;
+---
+
+<main class:list={['blackhole-page', `blackhole-page-${scene}`]} data-blackhole-page data-blackhole-scene={scene}>
+  {
+    scene === 'home' ? (
+      <section class="blackhole-home-flow blackhole-scroll-track" data-blackhole-scroll-track>
+        <div class="blackhole-risk-note" aria-hidden="true" data-blackhole-risk-note>
+          {riskLines.map((line) => <p>{line}</p>)}
+        </div>
+
+        <section id={storyId} class:list={['blackhole-story', 'shell', storyClass]} data-blackhole-story>
+          <slot />
+        </section>
+      </section>
+    ) : (
+      <section id={storyId} class:list={['blackhole-story', 'shell', storyClass]} data-blackhole-story>
+        <slot />
+      </section>
+    )
+  }
+</main>

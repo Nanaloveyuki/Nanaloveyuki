@@ -82,6 +82,157 @@ class Observer extends THREE.PerspectiveCamera {
   }
 }
 
+class CameraDragControls {
+  private domElement: HTMLElement;
+  private lookSpeed = 0.005;
+  private offsetX = 0;
+  private offsetY = 0;
+  private lastX = 0;
+  private lastY = 0;
+  private mouseDragOn = false;
+  private viewHalfX = 0;
+  private viewHalfY = 0;
+  yaw = 0;
+  pitch = 0;
+
+  get isDragging() {
+    return this.mouseDragOn;
+  }
+
+  constructor(domElement: HTMLElement) {
+    this.domElement = domElement;
+    this.domElement.setAttribute('tabindex', '-1');
+    this.addMouseEventHandlers();
+    this.handleResize();
+  }
+
+  handleResize() {
+    this.viewHalfX = this.domElement.offsetWidth / 2;
+    this.viewHalfY = this.domElement.offsetHeight / 2;
+  }
+
+  update(recenterStrength: number) {
+    if (this.mouseDragOn) {
+      this.yaw += this.lookSpeed * this.offsetX;
+      this.pitch += this.lookSpeed * this.offsetY;
+      this.pitch = clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+
+      this.offsetX *= 0.5;
+      this.offsetY *= 0.5;
+    }
+
+    if (!this.mouseDragOn && recenterStrength > 0) {
+      this.yaw = THREE.MathUtils.lerp(this.yaw, 0, recenterStrength);
+      this.pitch = THREE.MathUtils.lerp(this.pitch, 0, recenterStrength);
+    }
+  }
+
+  private addMouseEventHandlers() {
+    this.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
+
+    this.domElement.addEventListener('mousemove', (event) => {
+      if (!this.mouseDragOn) return;
+
+      const newX = event.pageX - this.domElement.offsetLeft - this.viewHalfX;
+      const newY = event.pageY - this.domElement.offsetTop - this.viewHalfY;
+
+      this.offsetX = newX - this.lastX;
+      this.offsetY = newY - this.lastY;
+      this.lastX = newX;
+      this.lastY = newY;
+    });
+
+    this.domElement.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || event.altKey) return;
+
+      this.domElement.focus();
+      event.preventDefault();
+      event.stopPropagation();
+
+      this.mouseDragOn = true;
+      this.lastX = event.pageX - this.domElement.offsetLeft - this.viewHalfX;
+      this.lastY = event.pageY - this.domElement.offsetTop - this.viewHalfY;
+    });
+
+    this.domElement.addEventListener('mouseup', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      this.mouseDragOn = false;
+      this.offsetX = 0;
+      this.offsetY = 0;
+    });
+
+    this.domElement.addEventListener('mouseleave', () => {
+      this.mouseDragOn = false;
+      this.offsetX = 0;
+      this.offsetY = 0;
+    });
+  }
+}
+
+class KeyboardOrbitControls {
+  private activeKeys = new Set<string>();
+  yaw = 0;
+  pitch = 0;
+
+  constructor() {
+    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
+    window.addEventListener('blur', this.clear);
+  }
+
+  update(delta: number, distance: number, allowInput: boolean, recenterStrength: number) {
+    if (allowInput) {
+      const orbitSpeed = clamp(distance * 0.07, 0.08, 0.56) * delta;
+
+      if (this.activeKeys.has('KeyA')) {
+        this.yaw += orbitSpeed;
+      }
+      if (this.activeKeys.has('KeyD')) {
+        this.yaw -= orbitSpeed;
+      }
+      if (this.activeKeys.has('KeyW')) {
+        this.pitch += orbitSpeed * 0.85;
+      }
+      if (this.activeKeys.has('KeyS')) {
+        this.pitch -= orbitSpeed * 0.85;
+      }
+
+      this.pitch = clamp(this.pitch, -1.15, 1.15);
+    }
+
+    if (recenterStrength > 0) {
+      this.yaw = THREE.MathUtils.lerp(this.yaw, 0, recenterStrength);
+      this.pitch = THREE.MathUtils.lerp(this.pitch, 0, recenterStrength);
+    }
+  }
+
+  dispose() {
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.clear);
+  }
+
+  private onKeyDown = (event: KeyboardEvent) => {
+    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) return;
+
+    this.activeKeys.add(event.code);
+    event.preventDefault();
+  };
+
+  private onKeyUp = (event: KeyboardEvent) => {
+    if (!['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) return;
+
+    this.activeKeys.delete(event.code);
+    event.preventDefault();
+  };
+
+  private clear = () => {
+    this.activeKeys.clear();
+  };
+}
+
 const fragmentShader = `
 #define PI 3.141592653589793238462643383279
 #define DEG_TO_RAD (PI/180.0)
@@ -341,7 +492,7 @@ if (host) {
 
   const cameraConfig = {
     distance: 10,
-    orbit: false,
+    orbit: true,
     fov: 90.0,
   };
 
@@ -397,12 +548,17 @@ if (host) {
   observer.fov = cameraConfig.fov;
   observer.up.applyMatrix4(new THREE.Matrix4().makeRotationZ(observer.incline));
   scene.add(observer);
+  const observerBaseUp = observer.up.clone();
+
+  const cameraControl = new CameraDragControls(host);
+  const keyboardOrbitControl = new KeyboardOrbitControls();
 
   const state = {
     lastFrame: 0,
     time: 0,
     rafId: 0,
     scrollProgress: 0,
+    readabilityMix: 0,
   };
 
   const origin = new THREE.Vector3(0, 0, 0);
@@ -410,6 +566,12 @@ if (host) {
   const right = new THREE.Vector3();
   const lookTarget = new THREE.Vector3();
   const upVector = new THREE.Vector3();
+  const orbitYawQuaternion = new THREE.Quaternion();
+  const orbitPitchQuaternion = new THREE.Quaternion();
+  const orbitUpAxis = new THREE.Vector3();
+  const orbitPitchAxis = new THREE.Vector3();
+  const rotatedPosition = new THREE.Vector3();
+  const rotatedVelocity = new THREE.Vector3();
 
   const setDemoSize = () => {
     const width = Math.max(canvasMount.clientWidth, 1);
@@ -435,30 +597,107 @@ if (host) {
     );
   };
 
-  const updatePresentation = () => {
+  const onWheel = (event: WheelEvent) => {
+    if (event.ctrlKey) return;
+
+    const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+    if (maxScroll <= 0) return;
+
+    const distanceFactor = clamp((observer.distance - 1.52) / (10 - 1.52), 0, 1);
+    const scrollMultiplier = THREE.MathUtils.lerp(0.34, 1, Math.sqrt(distanceFactor));
+    const nextScroll = clamp(window.scrollY + event.deltaY * scrollMultiplier, 0, maxScroll);
+
+    if (nextScroll === window.scrollY) return;
+
+    event.preventDefault();
+    window.scrollTo({ top: nextScroll, behavior: 'auto' });
+  };
+
+  const updatePresentation = (delta: number) => {
     const approachProgress = smoothstep(0.03, 0.68, state.scrollProgress);
     const emergeProgress = smoothstep(0.68, 0.92, state.scrollProgress);
+    const recenterProgress = smoothstep(0.08, 0.34, state.scrollProgress);
+    const starfieldRotation = Math.max(emergeProgress, smoothstep(0.8, 1, state.scrollProgress));
+    const manualOrbitAllowed = state.scrollProgress < 0.06;
+    const horizonViewProgress = smoothstep(0.14, 0.76, state.scrollProgress);
+    const autoOrbitYaw = THREE.MathUtils.lerp(0, 1.05, horizonViewProgress);
+    const autoOrbitPitch = THREE.MathUtils.lerp(
+      0,
+      -0.2,
+      smoothstep(0.2, 0.84, state.scrollProgress),
+    );
 
     cameraConfig.distance = THREE.MathUtils.lerp(10, 1.52, approachProgress);
     cameraConfig.fov = THREE.MathUtils.lerp(90, 104, approachProgress * (1 - emergeProgress * 0.5));
+    cameraConfig.orbit = state.scrollProgress < 0.04;
 
     observer.distance = cameraConfig.distance;
     observer.fov = cameraConfig.fov;
+
+    cameraControl.update(recenterProgress * 0.12);
+    keyboardOrbitControl.update(
+      delta,
+      observer.distance,
+      manualOrbitAllowed,
+      manualOrbitAllowed ? 0 : recenterProgress * 0.12,
+    );
+
+    orbitUpAxis.copy(observerBaseUp).normalize();
+    rotatedPosition.copy(observer.position);
+    rotatedVelocity.copy(observer.velocity);
+
+    orbitYawQuaternion.setFromAxisAngle(orbitUpAxis, keyboardOrbitControl.yaw + autoOrbitYaw);
+    rotatedPosition.applyQuaternion(orbitYawQuaternion);
+    rotatedVelocity.applyQuaternion(orbitYawQuaternion);
+
+    orbitPitchAxis.crossVectors(orbitUpAxis, rotatedPosition).normalize();
+    if (orbitPitchAxis.lengthSq() > 0) {
+      orbitPitchQuaternion.setFromAxisAngle(
+        orbitPitchAxis,
+        keyboardOrbitControl.pitch + autoOrbitPitch,
+      );
+      rotatedPosition.applyQuaternion(orbitPitchQuaternion);
+      rotatedVelocity.applyQuaternion(orbitPitchQuaternion);
+    }
+
+    observer.position.copy(rotatedPosition);
+    observer.velocity.copy(rotatedVelocity);
+    observer.up.copy(observerBaseUp).applyQuaternion(orbitYawQuaternion);
+    if (orbitPitchAxis.lengthSq() > 0) {
+      observer.up.applyQuaternion(orbitPitchQuaternion);
+    }
 
     upVector.copy(observer.up).normalize();
     baseForward.copy(origin).sub(observer.position).normalize();
     right.crossVectors(baseForward, upVector).normalize();
 
     const forwardOffset = THREE.MathUtils.lerp(0, 14, emergeProgress);
-    const verticalOffset = THREE.MathUtils.lerp(0, -0.65, emergeProgress);
-    const driftOffset = Math.sin(state.time * 0.12) * 0.9 * emergeProgress;
+    const verticalOffset = THREE.MathUtils.lerp(0, -0.85, emergeProgress);
+    const driftOffset = Math.sin(state.time * 0.18) * 0.72 * starfieldRotation;
+    const starYawOffset = state.time * 0.08 * starfieldRotation;
+    const yawOffset = cameraControl.yaw * (1 - recenterProgress * 0.82);
+    const pitchOffset = cameraControl.pitch * (1 - recenterProgress * 0.82);
 
     lookTarget.copy(origin);
     lookTarget.addScaledVector(baseForward, forwardOffset);
     lookTarget.addScaledVector(upVector, verticalOffset);
     lookTarget.addScaledVector(right, driftOffset);
 
-    observer.direction.copy(lookTarget.sub(observer.position).normalize());
+    lookTarget.sub(observer.position);
+
+    const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(
+      upVector,
+      yawOffset + starYawOffset,
+    );
+    const pitchAxis = new THREE.Vector3().crossVectors(lookTarget, upVector).normalize();
+    const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(pitchAxis, pitchOffset);
+
+    lookTarget.applyQuaternion(yawQuaternion);
+    if (pitchAxis.lengthSq() > 0) {
+      lookTarget.applyQuaternion(pitchQuaternion);
+    }
+
+    observer.direction.copy(lookTarget.normalize());
   };
 
   const updateUniforms = () => {
@@ -486,6 +725,25 @@ if (host) {
     bloomPass.threshold = bloomConfig.threshold;
   };
 
+  const updateReadableContrast = () => {
+    const horizonExposure = smoothstep(0.12, 0.72, state.scrollProgress);
+    const starfieldExposure = smoothstep(0.74, 0.96, state.scrollProgress);
+    const lateralGlow = clamp(
+      (Math.abs(keyboardOrbitControl.yaw) + Math.abs(cameraControl.yaw) * 0.6) / 1.4,
+      0,
+      1,
+    );
+    const pitchGlow = clamp(Math.abs(keyboardOrbitControl.pitch + cameraControl.pitch) / 0.9, 0, 1);
+    const targetMix = clamp(
+      horizonExposure * 0.72 + starfieldExposure * 0.2 + lateralGlow * 0.36 + pitchGlow * 0.24,
+      0,
+      1,
+    );
+
+    state.readabilityMix = THREE.MathUtils.lerp(state.readabilityMix, targetMix, 0.14);
+    host.style.setProperty('--story-contrast', state.readabilityMix.toFixed(4));
+  };
+
   const tick = (timestamp: number) => {
     if (!state.lastFrame) {
       state.lastFrame = timestamp;
@@ -496,9 +754,10 @@ if (host) {
     state.lastFrame = timestamp;
 
     observer.update(delta);
-    updatePresentation();
+    updatePresentation(delta);
     updateUniforms();
     composer.render();
+    updateReadableContrast();
 
     state.rafId = window.requestAnimationFrame(tick);
   };
@@ -524,6 +783,7 @@ if (host) {
 
   const onViewportChange = () => {
     setDemoSize();
+    cameraControl.handleResize();
     syncScrollState();
   };
 
@@ -548,9 +808,11 @@ if (host) {
     ),
   ]).then(() => {
     setDemoSize();
+    cameraControl.handleResize();
     syncScrollState();
-    updatePresentation();
+    updatePresentation(0);
     updateUniforms();
+    updateReadableContrast();
     state.rafId = window.requestAnimationFrame(tick);
   });
 
@@ -560,6 +822,7 @@ if (host) {
   document.addEventListener('visibilitychange', onVisibilityChange);
   document.addEventListener('mousedown', selectionGuard, true);
   document.addEventListener('mouseup', clearSelectionGuard, true);
+  window.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('scroll', syncScrollState, { passive: true });
   window.addEventListener('resize', onViewportChange);
   document.addEventListener('dragstart', (event) => {
@@ -576,8 +839,10 @@ if (host) {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       document.removeEventListener('mousedown', selectionGuard, true);
       document.removeEventListener('mouseup', clearSelectionGuard, true);
+      window.removeEventListener('wheel', onWheel);
       window.removeEventListener('scroll', syncScrollState);
       window.removeEventListener('resize', onViewportChange);
+      keyboardOrbitControl.dispose();
       renderer.dispose();
       mesh.geometry.dispose();
       material.dispose();

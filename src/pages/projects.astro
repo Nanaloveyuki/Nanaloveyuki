@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { profile, projects } from '../data/site';
+
+const pageTitle = `${profile.name} | 项目展示`;
+---
+
+<BaseLayout
+  title={pageTitle}
+  description="这里展示我正在做或已经公开的一些项目。"
+  pathname="/projects"
+>
+  <main class="shell">
+    <section class="panel reveal">
+      <div class="page-heading">
+        <p class="eyebrow">Projects</p>
+        <h1>项目展示</h1>
+        <p>这里展示的是我愿意公开拿出来介绍、也持续在关注的项目。</p>
+      </div>
+
+      <div class="project-grid">
+        {
+          projects.map((project) => (
+            <article class="project-card">
+              <span class="meta-label">{project.featured ? 'Featured' : 'Project'}</span>
+              <strong>{project.name}</strong>
+              <p>{project.summary}</p>
+              <ul class="pill-list">
+                {project.stack.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+              <a class="inline-link" href={project.href} target="_blank" rel="noreferrer">
+                查看仓库
+              </a>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+  </main>
+</BaseLayout>

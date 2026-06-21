@@ -1,0 +1,57 @@
+.project-card,
+.content-card,
+.timeline-card,
+.blog-card {
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.project-card p,
+.content-card p,
+.timeline-card p,
+.blog-card p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.page-heading {
+  margin-bottom: 28px;
+}
+
+.page-heading h1,
+.project-card strong,
+.content-card h2,
+.timeline-card h3,
+.blog-card h2 {
+  margin: 0;
+  font-family: 'Fraunces', 'Noto Serif SC', serif;
+}
+
+.page-heading h1 {
+  font-size: clamp(2.3rem, 6vw, 4.4rem);
+  line-height: 1.08;
+}
+
+.page-heading p {
+  max-width: 44rem;
+  margin: 14px 0 0;
+  color: var(--muted);
+}
+
+.prose-list,
+.link-list {
+  padding-left: 18px;
+  margin: 16px 0 0;
+}
+
+.prose-list li + li,
+.link-list li + li {
+  margin-top: 10px;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 24px;
+}

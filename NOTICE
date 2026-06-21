@@ -1,0 +1,15 @@
+This repository includes an Astro adaptation of the black hole rendering demo from:
+
+- Source repository: https://github.com/pizzakinggod/threejs-blackhole
+- Original author: pizzakinggod
+- Upstream license: GNU General Public License v3.0
+
+Files and assets adapted from or derived from the upstream demo are used for the black hole rendering page and related runtime assets in this repository, including the shader/runtime port and the bundled black hole textures under `public/blackhole/`.
+
+The bundled background image `public/blackhole/milkyway.jpg` carries separate attribution and license context:
+
+- Asset: `public/blackhole/milkyway.jpg`
+- License: Creative Commons Attribution-NonCommercial 2.0 Generic (`CC BY-NC 2.0`)
+- Attribution chain: referenced by the upstream demo as a Stellarium background image, based on Nick Risinger's Photopic Sky Survey image under `CC BY-NC 2.0`
+
+This notice is provided to preserve attribution and license context for the adapted rendering demo.

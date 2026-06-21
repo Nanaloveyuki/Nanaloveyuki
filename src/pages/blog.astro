@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { profile } from '../data/site';
+
+const pageTitle = `${profile.name} | 博客入口`;
+---
+
+<BaseLayout
+  title={pageTitle}
+  description="这里提供 Naloveyuki 博客的阅读入口和源码入口。"
+  pathname="/blog"
+>
+  <main class="shell">
+    <section class="panel reveal">
+      <div class="page-heading">
+        <p class="eyebrow">Blog</p>
+        <h1>博客入口</h1>
+        <p>这里整理了我的博客访问入口，以及博客源码对应的仓库地址。</p>
+      </div>
+
+      <div class="blog-grid">
+        <article class="blog-card">
+          <span class="meta-label">Reading</span>
+          <h2>打开博客站点</h2>
+          <p>如果你想看文章、随笔和更完整的个人表达，可以直接从这里进入博客。</p>
+          <div class="action-row">
+            <a
+              class="button button-primary"
+              href={profile.blog.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              打开博客
+            </a>
+          </div>
+        </article>
+
+        <article class="blog-card">
+          <span class="meta-label">Source</span>
+          <h2>查看 blog.me 仓库</h2>
+          <p>如果你更关心实现细节，也可以直接查看博客源码仓库。</p>
+          <div class="action-row">
+            <a
+              class="button button-secondary"
+              href={profile.blog.repo}
+              target="_blank"
+              rel="noreferrer"
+            >
+              打开仓库
+            </a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

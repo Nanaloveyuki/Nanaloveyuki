@@ -1,0 +1,102 @@
+.blackhole-page {
+  --story-reveal: 0;
+  position: relative;
+  min-height: 320svh;
+  overflow-x: clip;
+}
+
+.blackhole-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: #000;
+  pointer-events: none;
+}
+
+.blackhole-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(255, 248, 230, 0.06), transparent 18%),
+    radial-gradient(circle at 50% 46%, rgba(255, 220, 160, 0.03), transparent 28%);
+}
+
+.blackhole-scroll-track {
+  position: relative;
+  min-height: 220svh;
+}
+
+.blackhole-story {
+  position: relative;
+  z-index: 1;
+  color: #f5efe8;
+}
+
+.blackhole-kicker {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.84;
+}
+
+.blackhole-story h2,
+.blackhole-placeholder h3 {
+  margin: 0;
+  font-family: 'Fraunces', 'Noto Serif SC', serif;
+}
+
+.blackhole-story {
+  padding-top: 6svh;
+  padding-bottom: 18svh;
+  opacity: calc(0.16 + var(--story-reveal) * 0.84);
+  transition: opacity 180ms linear;
+}
+
+.blackhole-story-intro {
+  max-width: 40rem;
+}
+
+.blackhole-story h2 {
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  line-height: 1;
+  text-shadow: 0 12px 40px rgba(0, 0, 0, 0.26);
+}
+
+.blackhole-story-intro p:last-child,
+.blackhole-placeholder p {
+  max-width: 20rem;
+  margin: 16px 0 0;
+  line-height: 1.85;
+  color: rgba(245, 239, 232, 0.9);
+}
+
+.blackhole-placeholder-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 56px;
+}
+
+.blackhole-placeholder {
+  min-height: 180px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.blackhole-placeholder span {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.blackhole-placeholder h3 {
+  font-size: 1.5rem;
+  line-height: 1.12;
+  text-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+}

@@ -1,0 +1,61 @@
+@media (max-width: 960px) {
+  .section-grid,
+  .project-grid,
+  .content-grid,
+  .timeline-grid,
+  .blog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blackhole-placeholder-list {
+    grid-template-columns: 1fr;
+  }
+
+  .site-header-inner,
+  .site-footer-inner {
+    align-items: start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    width: min(calc(100% - 20px), var(--max-width));
+    padding: 20px 0 48px;
+  }
+
+  .blackhole-page {
+    min-height: 300svh;
+  }
+
+  .panel,
+  .content-card,
+  .timeline-card,
+  .project-card,
+  .blog-card {
+    padding: 20px;
+  }
+
+  .button,
+  .site-nav a {
+    width: 100%;
+  }
+
+  .blackhole-story {
+    padding-top: 8svh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

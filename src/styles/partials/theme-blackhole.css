@@ -1,0 +1,82 @@
+body.theme-blackhole {
+  color: #f5efe8;
+  background: #000;
+}
+
+body.theme-blackhole::before {
+  background: radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.04), transparent 24%);
+  opacity: 0.9;
+  mask-image: none;
+}
+
+body.theme-blackhole,
+body.theme-blackhole * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.selection-allowed,
+html.selection-allowed body,
+html.selection-allowed body * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+body.theme-blackhole .site-header {
+  background: rgba(5, 7, 10, 0.38);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-blackhole .site-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-blackhole .site-brand strong,
+body.theme-blackhole .site-brand small,
+body.theme-blackhole .footer-title,
+body.theme-blackhole .footer-copy,
+body.theme-blackhole .footer-links a,
+body.theme-blackhole .site-nav a {
+  color: #f5efe8;
+}
+
+body.theme-blackhole .site-nav a {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.theme-blackhole .site-nav a.is-active {
+  background: #f5efe8;
+  color: #000;
+}
+
+.blackhole-page {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.blackhole-stage {
+  position: relative;
+  min-height: calc(100vh - 190px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  background: #000;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.38);
+}
+
+.blackhole-stage-fullscreen {
+  min-height: calc(100vh - 150px);
+}
+
+.blackhole-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.blackhole-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

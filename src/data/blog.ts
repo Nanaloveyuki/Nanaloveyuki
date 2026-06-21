@@ -30,7 +30,8 @@ export const formatBlogDate = (value: string) => {
 
 export const sortBlogEntries = (entries: BlogEntry[]) =>
   [...entries].sort(
-    (left, right) => parseBlogDate(right.data.time).getTime() - parseBlogDate(left.data.time).getTime(),
+    (left, right) =>
+      parseBlogDate(right.data.time).getTime() - parseBlogDate(left.data.time).getTime(),
   );
 
 const isMissingBlogCollectionError = (error: unknown) => {

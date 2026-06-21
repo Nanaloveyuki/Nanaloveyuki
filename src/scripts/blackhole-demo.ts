@@ -201,7 +201,9 @@ class CameraDragControls {
 
       if (
         event.target instanceof Element &&
-        event.target.closest('a, button, input, textarea, select, summary, [data-no-blackhole-drag]')
+        event.target.closest(
+          'a, button, input, textarea, select, summary, [data-no-blackhole-drag]',
+        )
       ) {
         return;
       }
@@ -868,7 +870,11 @@ const bootBlackholeDemo = () => {
     if (maxScroll <= 0) return;
 
     const distanceFactor = clamp((observer.distance - 1.52) / (10 - 1.52), 0, 1);
-    const storyProgressBoost = THREE.MathUtils.lerp(0.9, 1.8, smoothstep(0.52, 0.94, state.scrollProgress));
+    const storyProgressBoost = THREE.MathUtils.lerp(
+      0.9,
+      1.8,
+      smoothstep(0.52, 0.94, state.scrollProgress),
+    );
     const baseScrollMultiplier = THREE.MathUtils.lerp(0.34, 1.06, Math.sqrt(distanceFactor));
     const scrollMultiplier = baseScrollMultiplier * storyProgressBoost;
     const nextScroll = clamp(window.scrollY + event.deltaY * scrollMultiplier, 0, maxScroll);
@@ -883,7 +889,11 @@ const bootBlackholeDemo = () => {
     const target = getSceneTarget();
     const sceneBlend = clamp(1 - Math.exp(-delta * 5.2), 0.045, 0.2);
 
-    cameraConfig.distance = THREE.MathUtils.lerp(cameraConfig.distance, target.distance, sceneBlend);
+    cameraConfig.distance = THREE.MathUtils.lerp(
+      cameraConfig.distance,
+      target.distance,
+      sceneBlend,
+    );
     cameraConfig.fov = THREE.MathUtils.lerp(cameraConfig.fov, target.fov, sceneBlend);
     cameraConfig.orbit = target.orbit;
 
@@ -996,7 +1006,10 @@ const bootBlackholeDemo = () => {
     const targetMix =
       sceneName === 'home'
         ? clamp(
-            horizonExposure * 0.72 + starfieldExposure * 0.2 + lateralGlow * 0.36 + pitchGlow * 0.24,
+            horizonExposure * 0.72 +
+              starfieldExposure * 0.2 +
+              lateralGlow * 0.36 +
+              pitchGlow * 0.24,
             0,
             1,
           )

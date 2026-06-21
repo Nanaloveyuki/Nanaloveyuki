@@ -17,7 +17,9 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 const pageTitle = `${post.data.title} | ${profile.name}`;
 const pathname = `/blog/${post.id}/`;
-const relatedPosts = (await getPublishedBlogEntries()).filter((entry) => entry.id !== post.id).slice(0, 5);
+const relatedPosts = (await getPublishedBlogEntries())
+  .filter((entry) => entry.id !== post.id)
+  .slice(0, 5);
 ---
 
 <BaseLayout
@@ -34,13 +36,15 @@ const relatedPosts = (await getPublishedBlogEntries()).filter((entry) => entry.i
         <h1>{post.data.title}</h1>
         <div class="stars-article-meta">
           <span>{formatBlogDate(post.data.time)}</span>
-          {post.data.tags.length > 0 && (
-            <ul class="stars-tag-list" aria-label={`${post.data.title} 标签`}>
-              {post.data.tags.map((tag) => (
-                <li>{tag}</li>
-              ))}
-            </ul>
-          )}
+          {
+            post.data.tags.length > 0 && (
+              <ul class="stars-tag-list" aria-label={`${post.data.title} 标签`}>
+                {post.data.tags.map((tag) => (
+                  <li>{tag}</li>
+                ))}
+              </ul>
+            )
+          }
         </div>
       </header>
 
@@ -60,31 +64,35 @@ const relatedPosts = (await getPublishedBlogEntries()).filter((entry) => entry.i
             <p>{formatBlogDate(post.data.time)}</p>
           </section>
 
-          {post.data.tags.length > 0 && (
-            <section class="stars-sidebar-block">
-              <p class="stars-sidebar-label">标签</p>
-              <ul class="stars-tag-list" aria-label="文章标签">
-                {post.data.tags.map((tag) => (
-                  <li>{tag}</li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {
+            post.data.tags.length > 0 && (
+              <section class="stars-sidebar-block">
+                <p class="stars-sidebar-label">标签</p>
+                <ul class="stars-tag-list" aria-label="文章标签">
+                  {post.data.tags.map((tag) => (
+                    <li>{tag}</li>
+                  ))}
+                </ul>
+              </section>
+            )
+          }
 
-          {relatedPosts.length > 0 && (
-            <section class="stars-sidebar-block">
-              <p class="stars-sidebar-label">最近文章</p>
-              <ul class="blackhole-link-list" aria-label="最近文章">
-                {relatedPosts.map((entry) => (
-                  <li>
-                    <a class="stars-sidebar-link" href={`/blog/${entry.id}/`}>
-                      {entry.data.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {
+            relatedPosts.length > 0 && (
+              <section class="stars-sidebar-block">
+                <p class="stars-sidebar-label">最近文章</p>
+                <ul class="blackhole-link-list" aria-label="最近文章">
+                  {relatedPosts.map((entry) => (
+                    <li>
+                      <a class="stars-sidebar-link" href={`/blog/${entry.id}/`}>
+                        {entry.data.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )
+          }
         </aside>
       </div>
     </article>
@@ -124,10 +132,13 @@ const relatedPosts = (await getPublishedBlogEntries()).filter((entry) => entry.i
             button.querySelector('.code-copy-button__label').textContent = '复制失败';
           }
 
-          window.setTimeout(() => {
-            button.dataset.copyState = 'idle';
-            button.querySelector('.code-copy-button__label').textContent = '复制';
-          }, 1800 + index * 20);
+          window.setTimeout(
+            () => {
+              button.dataset.copyState = 'idle';
+              button.querySelector('.code-copy-button__label').textContent = '复制';
+            },
+            1800 + index * 20,
+          );
         });
 
         pre.appendChild(button);

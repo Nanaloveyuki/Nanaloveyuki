@@ -44,13 +44,15 @@ const aboutParagraphs = [
         <span>Projects</span>
         <h3>项目与作品</h3>
         <ul class="blackhole-link-list" aria-label="项目与作品链接">
-          {projects.map((project) => (
-            <li>
-              <a class="blackhole-list-link" href={project.href} target="_blank" rel="noreferrer">
-                {project.name}
-              </a>
-            </li>
-          ))}
+          {
+            projects.map((project) => (
+              <li>
+                <a class="blackhole-list-link" href={project.href} target="_blank" rel="noreferrer">
+                  {project.name}
+                </a>
+              </li>
+            ))
+          }
         </ul>
       </article>
 

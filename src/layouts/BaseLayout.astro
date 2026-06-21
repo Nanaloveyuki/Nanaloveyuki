@@ -37,8 +37,8 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
     {
       useBlackholeShell && (
         <div class="blackhole-global" data-blackhole-root transition:persist>
-          <div class="blackhole-canvas" data-blackhole-canvas></div>
-          <div class="blackhole-vignette"></div>
+          <div class="blackhole-canvas" data-blackhole-canvas />
+          <div class="blackhole-vignette" />
         </div>
       )
     }
@@ -113,9 +113,7 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
             window.__BLACKHOLE_ASSET_BASE__ = assetBase;
           </script>
 
-          <script>
-            import '../scripts/blackhole-demo.ts';
-          </script>
+          <script>import '../scripts/blackhole-demo.ts';</script>
         </>
       )
     }

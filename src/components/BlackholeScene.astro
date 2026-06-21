@@ -14,20 +14,34 @@ const {
 } = Astro.props;
 ---
 
-<main class:list={['blackhole-page', `blackhole-page-${scene}`]} data-blackhole-page data-blackhole-scene={scene}>
+<main
+  class:list={['blackhole-page', `blackhole-page-${scene}`]}
+  data-blackhole-page
+  data-blackhole-scene={scene}
+>
   {
     scene === 'home' ? (
       <section class="blackhole-home-flow blackhole-scroll-track" data-blackhole-scroll-track>
         <div class="blackhole-risk-note" aria-hidden="true" data-blackhole-risk-note>
-          {riskLines.map((line) => <p>{line}</p>)}
+          {riskLines.map((line) => (
+            <p>{line}</p>
+          ))}
         </div>
 
-        <section id={storyId} class:list={['blackhole-story', 'shell', storyClass]} data-blackhole-story>
+        <section
+          id={storyId}
+          class:list={['blackhole-story', 'shell', storyClass]}
+          data-blackhole-story
+        >
           <slot />
         </section>
       </section>
     ) : (
-      <section id={storyId} class:list={['blackhole-story', 'shell', storyClass]} data-blackhole-story>
+      <section
+        id={storyId}
+        class:list={['blackhole-story', 'shell', storyClass]}
+        data-blackhole-story
+      >
         <slot />
       </section>
     )

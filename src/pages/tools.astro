@@ -5,10 +5,12 @@ import { profile } from '../data/site';
 
 const pageTitle = `${profile.name} | 工具导航`;
 const toolsModule = await import('../../public/tools.json');
-const tools = Object.entries(toolsModule.default as Record<string, string>).map(([label, href]) => ({
-  label,
-  href,
-}));
+const tools = Object.entries(toolsModule.default as Record<string, string>).map(
+  ([label, href]) => ({
+    label,
+    href,
+  }),
+);
 ---
 
 <BaseLayout

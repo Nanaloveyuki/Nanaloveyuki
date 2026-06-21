@@ -1,6 +1,7 @@
 .blackhole-page {
   --story-reveal: 0;
   --story-contrast: 0;
+  --risk-visibility: 0;
   position: relative;
   min-height: 320svh;
   overflow-x: clip;
@@ -39,6 +40,33 @@
     color 260ms ease,
     text-shadow 260ms ease,
     opacity 180ms linear;
+}
+
+.blackhole-risk-note {
+  position: fixed;
+  left: 50%;
+  top: 53%;
+  z-index: 2;
+  display: grid;
+  gap: 14px;
+  width: min(90vw, 36rem);
+  transform: translate3d(-50%, -50%, 0);
+  color: rgba(210, 210, 210, calc(0.24 + var(--risk-visibility) * 0.56));
+  opacity: var(--risk-visibility);
+  text-align: center;
+  pointer-events: none;
+  transition:
+    opacity 220ms ease,
+    color 220ms ease;
+}
+
+.blackhole-risk-note p {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.1vw, 1.45rem);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  text-shadow: 0 0 24px rgba(0, 0, 0, 0.24);
 }
 
 .blackhole-kicker {

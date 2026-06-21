@@ -485,9 +485,9 @@ if (host) {
   };
 
   const bloomConfig = {
-    strength: 1.0,
-    radius: 0.5,
-    threshold: 0.6,
+    strength: 0.78,
+    radius: 0.34,
+    threshold: 0.72,
   };
 
   const cameraConfig = {
@@ -594,6 +594,13 @@ if (host) {
     host.style.setProperty(
       '--story-reveal',
       smoothstep(0.72, 0.96, state.scrollProgress).toFixed(4),
+    );
+    host.style.setProperty(
+      '--risk-visibility',
+      (
+        smoothstep(0.22, 0.38, state.scrollProgress) *
+        (1 - smoothstep(0.56, 0.72, state.scrollProgress))
+      ).toFixed(4),
     );
   };
 

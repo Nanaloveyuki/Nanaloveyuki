@@ -44,6 +44,15 @@
   .blackhole-story {
     padding-top: 8svh;
   }
+
+  .blackhole-risk-note {
+    width: min(88vw, 28rem);
+    gap: 10px;
+  }
+
+  .blackhole-risk-note p {
+    font-size: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

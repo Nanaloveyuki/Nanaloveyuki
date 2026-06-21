@@ -66,7 +66,7 @@ export const profile = {
 
 export const navLinks: NavItem[] = [
   { label: '首页', href: '/' },
-  { label: '关于我', href: '/about' },
+  { label: '关于我', href: '/#about' },
   { label: '项目', href: '/projects' },
   { label: '博客', href: '/blog' },
 ];
@@ -128,7 +128,7 @@ export const sections: Section[] = [
     items: [
       {
         label: '关于我',
-        href: '/about',
+        href: '/#about',
         description: '集中查看我的基本信息、擅长方向和成长轨迹。',
         tag: 'Profile',
         accent: '#ff8a5b',
@@ -156,7 +156,7 @@ export const sections: Section[] = [
     items: [
       {
         label: '写文档和整理内容',
-        href: '/about',
+        href: '/#about',
         description: '我喜欢把复杂事情讲明白，也愿意把细节整理到可读。',
         tag: 'Writing',
         accent: '#4bb7a8',

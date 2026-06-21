@@ -34,7 +34,7 @@
 .site-brand {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 0;
 }
 
 .site-brand strong,
@@ -49,20 +49,6 @@
 .footer-copy {
   color: var(--muted);
   font-size: 0.9rem;
-}
-
-.site-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-cool));
-  color: #fff7ef;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  box-shadow: 0 14px 28px rgba(93, 56, 36, 0.2);
 }
 
 .site-nav,

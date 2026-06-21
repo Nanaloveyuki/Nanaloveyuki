@@ -9,6 +9,8 @@ const HOST_SELECTOR = '[data-blackhole-root]';
 const PAGE_SELECTOR = '[data-blackhole-page]';
 const SCROLL_TRACK_SELECTOR = '[data-blackhole-scroll-track]';
 const HEADER_SELECTOR = '[data-site-header]';
+const NIGHT_WARNING_SELECTOR = '[data-blackhole-night-warning]';
+const NIGHT_WARNING_CONFIRM_SELECTOR = '[data-blackhole-night-warning-confirm]';
 const BLACKHOLE_BODY_CLASS = 'theme-blackhole';
 
 type SceneName = 'home' | 'projects' | 'blog' | 'tools';
@@ -532,6 +534,10 @@ const bootBlackholeDemo = () => {
   let pageHost = document.querySelector<HTMLElement>(PAGE_SELECTOR);
   let scrollTrack = pageHost?.querySelector<HTMLElement>(SCROLL_TRACK_SELECTOR) ?? null;
   let siteHeader = document.querySelector<HTMLElement>(HEADER_SELECTOR);
+  const nightWarning = document.querySelector<HTMLElement>(NIGHT_WARNING_SELECTOR);
+  const nightWarningConfirm = nightWarning?.querySelector<HTMLButtonElement>(
+    NIGHT_WARNING_CONFIRM_SELECTOR,
+  );
 
   if (!canvasMount) {
     throw new Error('Missing blackhole demo mount points');
@@ -661,6 +667,7 @@ const bootBlackholeDemo = () => {
     lastFrame: 0,
     time: 0,
     rafId: 0,
+    renderPaused: false,
     scrollProgress: 0,
     readabilityMix: 0,
     lastScrollY: window.scrollY,
@@ -734,6 +741,12 @@ const bootBlackholeDemo = () => {
     const manualOrbitAllowed = state.scrollProgress < 0.06;
     const horizonViewProgress = smoothstep(0.14, 0.76, state.scrollProgress);
 
+    const autoYawStart = 0.16;
+    const autoYawStop = 0.44;
+    const autoYawWindow =
+      smoothstep(autoYawStart, autoYawStart + 0.1, state.scrollProgress) *
+      (1 - smoothstep(autoYawStop - 0.08, autoYawStop, state.scrollProgress));
+
     return {
       distance: THREE.MathUtils.lerp(10, 1.52, approachProgress),
       fov: THREE.MathUtils.lerp(90, 104, approachProgress * (1 - emergeProgress * 0.5)),
@@ -742,7 +755,7 @@ const bootBlackholeDemo = () => {
       dragRecenter: recenterProgress * 0.12,
       keyboardRecenter: manualOrbitAllowed ? 0 : recenterProgress * 0.12,
       keyboardEnabled: manualOrbitAllowed,
-      autoYaw: THREE.MathUtils.lerp(0, 1.05, horizonViewProgress),
+      autoYaw: THREE.MathUtils.lerp(0, 1.05, horizonViewProgress) * autoYawWindow,
       autoPitch: THREE.MathUtils.lerp(0, -0.2, smoothstep(0.2, 0.84, state.scrollProgress)),
       forwardOffset: THREE.MathUtils.lerp(0, 14, emergeProgress),
       verticalOffset: THREE.MathUtils.lerp(0, -0.85, emergeProgress),
@@ -887,6 +900,7 @@ const bootBlackholeDemo = () => {
 
   const updatePresentation = (delta: number) => {
     const target = getSceneTarget();
+    const sceneName = getSceneName();
     const sceneBlend = clamp(1 - Math.exp(-delta * 5.2), 0.045, 0.2);
 
     cameraConfig.distance = THREE.MathUtils.lerp(
@@ -899,6 +913,15 @@ const bootBlackholeDemo = () => {
 
     observer.distance = cameraConfig.distance;
     observer.fov = cameraConfig.fov;
+
+    if (sceneName === 'home' && state.scrollProgress > 0.06) {
+      const orbitBrake = THREE.MathUtils.lerp(
+        0.18,
+        0.82,
+        smoothstep(0.06, 0.18, state.scrollProgress),
+      );
+      observer.angularVelocity = THREE.MathUtils.lerp(observer.angularVelocity, 0, orbitBrake);
+    }
 
     cameraControl.setEnabled(target.dragEnabled);
     cameraControl.update(target.dragRecenter);
@@ -1036,6 +1059,47 @@ const bootBlackholeDemo = () => {
     setDemoSize();
   };
 
+  const isNightHours = () => {
+    const currentHour = new Date().getHours();
+    return currentHour >= 19 || currentHour < 6;
+  };
+
+  const pauseRendering = () => {
+    if (state.renderPaused) return;
+
+    state.renderPaused = true;
+    window.cancelAnimationFrame(state.rafId);
+    state.rafId = 0;
+  };
+
+  const resumeRendering = () => {
+    if (!state.renderPaused) return;
+
+    state.renderPaused = false;
+    state.lastFrame = 0;
+    state.rafId = window.requestAnimationFrame(tick);
+  };
+
+  const dismissNightWarning = () => {
+    if (!nightWarning) return;
+
+    nightWarning.hidden = true;
+    document.body.removeAttribute('data-blackhole-night-locked');
+    resumeRendering();
+  };
+
+  const showNightWarningIfNeeded = () => {
+    if (!nightWarning || !isNightHours()) {
+      dismissNightWarning();
+      return;
+    }
+
+    nightWarning.hidden = false;
+    document.body.setAttribute('data-blackhole-night-locked', 'true');
+    pauseRendering();
+    nightWarningConfirm?.focus();
+  };
+
   const tick = (timestamp: number) => {
     if (!state.lastFrame) {
       state.lastFrame = timestamp;
@@ -1056,6 +1120,10 @@ const bootBlackholeDemo = () => {
   };
 
   const onVisibilityChange = () => {
+    if (state.renderPaused) {
+      return;
+    }
+
     if (document.hidden) {
       window.cancelAnimationFrame(state.rafId);
       return;
@@ -1106,7 +1174,11 @@ const bootBlackholeDemo = () => {
     updatePresentation(0);
     updateUniforms();
     updateReadableContrast();
-    state.rafId = window.requestAnimationFrame(tick);
+    showNightWarningIfNeeded();
+
+    if (!state.renderPaused) {
+      state.rafId = window.requestAnimationFrame(tick);
+    }
   });
 
   const resizeObserver = new ResizeObserver(setDemoSize);
@@ -1120,6 +1192,7 @@ const bootBlackholeDemo = () => {
   window.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('scroll', syncScrollState, { passive: true });
   window.addEventListener('resize', onViewportChange);
+  nightWarningConfirm?.addEventListener('click', dismissNightWarning);
   document.addEventListener('dragstart', (event) => {
     if (!(event.altKey && event instanceof MouseEvent && event.button === 0)) {
       event.preventDefault();
@@ -1139,6 +1212,7 @@ const bootBlackholeDemo = () => {
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('scroll', syncScrollState);
       window.removeEventListener('resize', onViewportChange);
+      nightWarningConfirm?.removeEventListener('click', dismissNightWarning);
       keyboardOrbitControl.dispose();
       renderer.dispose();
       mesh.geometry.dispose();

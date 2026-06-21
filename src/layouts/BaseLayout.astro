@@ -37,10 +37,38 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
   <body class={bodyClass} data-route-pathname={pathname}>
     {
       useBlackholeShell && (
-        <div class="blackhole-global" data-blackhole-root transition:persist>
-          <div class="blackhole-canvas" data-blackhole-canvas />
-          <div class="blackhole-vignette" />
-        </div>
+        <>
+          <div class="blackhole-global" data-blackhole-root transition:persist>
+            <div class="blackhole-canvas" data-blackhole-canvas />
+            <div class="blackhole-vignette" />
+          </div>
+
+          <div
+            class="blackhole-night-warning"
+            data-blackhole-night-warning
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="blackhole-night-warning-title"
+            aria-describedby="blackhole-night-warning-copy"
+            hidden
+          >
+            <div class="blackhole-night-warning-backdrop" data-blackhole-night-warning-dismiss />
+            <div class="blackhole-night-warning-card shell">
+              <p class="blackhole-night-warning-kicker">Night Notice</p>
+              <h2 id="blackhole-night-warning-title">夜间提醒</h2>
+              <p id="blackhole-night-warning-copy">
+                由于渲染黑洞会导致光差十分明显, 为了您的眼部健康, 不推荐在少光无光的情况下进入
+              </p>
+              <button
+                type="button"
+                class="blackhole-night-warning-action"
+                data-blackhole-night-warning-confirm
+              >
+                我已知晓
+              </button>
+            </div>
+          </div>
+        </>
       )
     }
 

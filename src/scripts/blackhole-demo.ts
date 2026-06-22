@@ -4,56 +4,38 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-
-const HOST_SELECTOR = '[data-blackhole-root]';
-const PAGE_SELECTOR = '[data-blackhole-page]';
-const SCROLL_TRACK_SELECTOR = '[data-blackhole-scroll-track]';
-const HEADER_SELECTOR = '[data-site-header]';
-const NIGHT_WARNING_SELECTOR = '[data-blackhole-night-warning]';
-const NIGHT_WARNING_CONFIRM_SELECTOR = '[data-blackhole-night-warning-confirm]';
-const FRIEND_TOOLTIP_SELECTOR = '[data-blackhole-friend-tooltip]';
-const BLACKHOLE_BODY_CLASS = 'theme-blackhole';
-
-type SceneName = 'home' | 'projects' | 'blog' | 'tools';
-type RenderQuality = 'low' | 'medium';
-type FriendPlanetType = 'cool' | 'cold' | 'warm' | 'hot';
-
-type FriendPlanet = {
-  name: string;
-  url: string;
-  type: FriendPlanetType;
-  description: string;
-};
-
-type PerformanceConfig = {
-  resolution: number;
-  quality: RenderQuality;
-};
-
-type SceneTarget = {
-  distance: number;
-  fov: number;
-  orbit: boolean;
-  dragEnabled: boolean;
-  dragRecenter: number;
-  keyboardRecenter: number;
-  keyboardEnabled: boolean;
-  autoYaw: number;
-  autoPitch: number;
-  forwardOffset: number;
-  verticalOffset: number;
-  rightOffset: number;
-  driftAmplitude: number;
-  starYawSpeed: number;
-  storyReveal: number;
-  riskVisibility: number;
-};
-
-type BlackholeWindow = Window & {
-  __BLACKHOLE_DEMO_INITIALIZED__?: boolean;
-  __BLACKHOLE_DEMO_REFRESH__?: () => void;
-  __BLACKHOLE_DEMO_HOST__?: HTMLElement | null;
-};
+import {
+  BLACKHOLE_BODY_CLASS,
+  FRIEND_TOOLTIP_SELECTOR,
+  HEADER_SELECTOR,
+  HOST_SELECTOR,
+  NIGHT_WARNING_CONFIRM_SELECTOR,
+  NIGHT_WARNING_SELECTOR,
+  PAGE_SELECTOR,
+  PLANET_PANEL_CLOSE_SELECTOR,
+  PLANET_PANEL_SELECTOR,
+  SCROLL_TRACK_SELECTOR,
+} from './blackhole/types';
+import type {
+  BlackholeWindow,
+  FriendPlanet,
+  FriendPlanetProfile,
+  FriendPlanetType,
+  PlanetEntry,
+  PerformanceConfig,
+  RenderQuality,
+  SceneName,
+  SceneTarget,
+} from './blackhole/types';
+import {
+  clamp,
+  createOrbitLine,
+  DEFAULT_PERFORMANCE_CONFIG,
+  getMeasuredPerformanceTarget,
+  getOrbitBand,
+  hashString,
+  smoothstep,
+} from './blackhole/math';
 
 class Observer extends THREE.PerspectiveCamera {
   time = 0;
@@ -130,118 +112,202 @@ class Observer extends THREE.PerspectiveCamera {
 }
 
 class CameraDragControls {
-  private lookSpeed = 0.005;
+  private lookSpeed = 0.0042;
   private offsetX = 0;
   private offsetY = 0;
+  private dragActive = false;
+  private pointerLocked = false;
   private lastX = 0;
   private lastY = 0;
-  private mouseDragOn = false;
-  private viewHalfX = 0;
-  private viewHalfY = 0;
+  private domElement: HTMLElement;
   enabled = true;
   yaw = 0;
   pitch = 0;
 
-  get isDragging() {
-    return this.mouseDragOn;
+  get isCapturing() {
+    return this.dragActive || this.pointerLocked;
   }
 
-  constructor() {
+  get isPointerLocked() {
+    return this.pointerLocked;
+  }
+
+  constructor(domElement: HTMLElement) {
+    this.domElement = domElement;
     this.addMouseEventHandlers();
-    this.handleResize();
   }
 
-  handleResize() {
-    this.viewHalfX = window.innerWidth / 2;
-    this.viewHalfY = window.innerHeight / 2;
-  }
+  handleResize() {}
 
   setEnabled(next: boolean) {
     this.enabled = next;
 
     if (!next) {
-      this.mouseDragOn = false;
-      this.offsetX = 0;
-      this.offsetY = 0;
+      this.dragActive = false;
+      this.resetOffsets();
+
+      if (this.pointerLocked) {
+        void document.exitPointerLock();
+      }
     }
   }
 
   update(recenterStrength: number) {
-    if (!this.enabled && this.mouseDragOn) {
-      this.mouseDragOn = false;
-      this.offsetX = 0;
-      this.offsetY = 0;
+    if (!this.enabled && this.isCapturing) {
+      this.dragActive = false;
+      this.resetOffsets();
     }
 
-    if (this.enabled && this.mouseDragOn) {
-      this.yaw -= this.lookSpeed * this.offsetX;
+    if (this.enabled && this.isCapturing) {
+      this.yaw += this.lookSpeed * this.offsetX;
       this.pitch -= this.lookSpeed * this.offsetY;
-      this.pitch = clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+      this.pitch = clamp(this.pitch, -1.54, 1.54);
 
-      this.offsetX *= 0.5;
-      this.offsetY *= 0.5;
+      this.resetOffsets();
     }
 
-    if (!this.mouseDragOn && recenterStrength > 0) {
+    if (!this.isCapturing && recenterStrength > 0) {
       this.yaw = THREE.MathUtils.lerp(this.yaw, 0, recenterStrength);
       this.pitch = THREE.MathUtils.lerp(this.pitch, 0, recenterStrength);
     }
   }
 
-  private addMouseEventHandlers() {
-    window.addEventListener('contextmenu', (event) => {
-      if (this.mouseDragOn) {
-        event.preventDefault();
-      }
-    });
+  dispose() {
+    if (document.pointerLockElement === this.domElement) {
+      void document.exitPointerLock();
+    }
 
-    window.addEventListener('mousemove', (event) => {
-      if (!this.mouseDragOn) return;
-
-      const newX = event.clientX - this.viewHalfX;
-      const newY = event.clientY - this.viewHalfY;
-
-      this.offsetX = newX - this.lastX;
-      this.offsetY = newY - this.lastY;
-      this.lastX = newX;
-      this.lastY = newY;
-    });
-
-    window.addEventListener('mousedown', (event) => {
-      if (!this.enabled || event.button !== 0 || event.altKey) return;
-
-      if (
-        event.target instanceof Element &&
-        event.target.closest(
-          'a, button, input, textarea, select, summary, [data-no-blackhole-drag]',
-        )
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-
-      this.mouseDragOn = true;
-      this.lastX = event.clientX - this.viewHalfX;
-      this.lastY = event.clientY - this.viewHalfY;
-    });
-
-    window.addEventListener('mouseup', (event) => {
-      if (!this.mouseDragOn) return;
-
-      event.preventDefault();
-
-      this.mouseDragOn = false;
-      this.offsetX = 0;
-      this.offsetY = 0;
-    });
-
-    window.addEventListener('mouseleave', () => {
-      this.mouseDragOn = false;
-      this.offsetX = 0;
-      this.offsetY = 0;
-    });
+    window.removeEventListener('contextmenu', this.onContextMenu);
+    window.removeEventListener('pointerdown', this.onPointerDown, true);
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
+    window.removeEventListener('blur', this.onBlur);
+    document.removeEventListener('pointerlockchange', this.onPointerLockChange);
   }
+
+  private resetOffsets() {
+    this.offsetX = 0;
+    this.offsetY = 0;
+  }
+
+  private isInteractiveTarget(target: EventTarget | null) {
+    return (
+      target instanceof Element &&
+      Boolean(
+        target.closest('a, button, input, textarea, select, summary, [data-no-blackhole-drag]'),
+      )
+    );
+  }
+
+  private isInsideViewport(clientX: number, clientY: number) {
+    const bounds = this.domElement.getBoundingClientRect();
+
+    return (
+      clientX >= bounds.left &&
+      clientX <= bounds.right &&
+      clientY >= bounds.top &&
+      clientY <= bounds.bottom
+    );
+  }
+
+  private togglePointerLock() {
+    if (document.pointerLockElement === this.domElement) {
+      void document.exitPointerLock();
+      return;
+    }
+
+    void this.domElement.requestPointerLock();
+  }
+
+  private addMouseEventHandlers() {
+    window.addEventListener('contextmenu', this.onContextMenu);
+    window.addEventListener('pointerdown', this.onPointerDown, true);
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
+    window.addEventListener('blur', this.onBlur);
+    document.addEventListener('pointerlockchange', this.onPointerLockChange);
+  }
+
+  private onContextMenu = (event: MouseEvent) => {
+    if (!this.pointerLocked && !this.isInsideViewport(event.clientX, event.clientY)) {
+      return;
+    }
+
+    event.preventDefault();
+  };
+
+  private onPointerDown = (event: PointerEvent) => {
+    if (
+      !this.enabled ||
+      event.altKey ||
+      !this.isInsideViewport(event.clientX, event.clientY) ||
+      this.isInteractiveTarget(event.target)
+    ) {
+      return;
+    }
+
+    if (event.button === 2) {
+      event.preventDefault();
+      this.dragActive = false;
+      this.resetOffsets();
+      this.togglePointerLock();
+      return;
+    }
+
+    if (event.button !== 0 || this.pointerLocked) {
+      return;
+    }
+
+    event.preventDefault();
+    this.dragActive = true;
+    this.lastX = event.clientX;
+    this.lastY = event.clientY;
+  };
+
+  private onPointerMove = (event: PointerEvent) => {
+    if (!this.enabled) return;
+
+    if (this.pointerLocked) {
+      this.offsetX += event.movementX;
+      this.offsetY += event.movementY;
+      return;
+    }
+
+    if (!this.dragActive) return;
+
+    const nextX = event.clientX;
+    const nextY = event.clientY;
+
+    this.offsetX += nextX - this.lastX;
+    this.offsetY += nextY - this.lastY;
+    this.lastX = nextX;
+    this.lastY = nextY;
+  };
+
+  private onPointerUp = (event: PointerEvent) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    this.dragActive = false;
+    this.resetOffsets();
+  };
+
+  private onPointerLockChange = () => {
+    const isLocked = document.pointerLockElement === this.domElement;
+
+    this.pointerLocked = isLocked;
+    this.dragActive = false;
+    this.resetOffsets();
+    this.domElement.style.cursor = isLocked ? 'none' : '';
+  };
+
+  private onBlur = () => {
+    this.dragActive = false;
+    this.resetOffsets();
+  };
 }
 
 class KeyboardMoveControls {
@@ -262,8 +328,8 @@ class KeyboardMoveControls {
     recenterStrength: number,
     basis: { forward: THREE.Vector3; right: THREE.Vector3; up: THREE.Vector3 },
   ) {
-    const acceleration = clamp(distance * 1.18, 0.9, 4.4);
-    const damping = Math.exp(-delta * 4.4);
+    const acceleration = clamp(distance * 2.9, 2.4, 10.5);
+    const damping = Math.exp(-delta * 3.1);
     const accelerationStep = acceleration * delta;
 
     if (allowInput) {
@@ -290,10 +356,10 @@ class KeyboardMoveControls {
     this.velocity.multiplyScalar(damping);
     this.offset.addScaledVector(this.velocity, delta);
 
-    const maxOffset = THREE.MathUtils.lerp(1.8, 4.4, clamp((distance - 1.52) / 8.48, 0, 1));
+    const maxOffset = THREE.MathUtils.lerp(32, 84, clamp((distance - 1.52) / 8.48, 0, 1));
     if (this.offset.length() > maxOffset) {
       this.offset.setLength(maxOffset);
-      this.velocity.multiplyScalar(0.72);
+      this.velocity.multiplyScalar(0.86);
     }
 
     if (!allowInput && recenterStrength > 0) {
@@ -514,30 +580,6 @@ void main() {
 }
 `;
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const smoothstep = (start: number, end: number, value: number) => {
-  const x = clamp((value - start) / (end - start), 0, 1);
-  return x * x * (3 - 2 * x);
-};
-
-const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
-  resolution: 1.0,
-  quality: 'medium',
-};
-
-const getMeasuredPerformanceTarget = (averageFps: number): PerformanceConfig => {
-  if (averageFps >= 46) {
-    return { resolution: 1.0, quality: 'medium' };
-  }
-
-  if (averageFps >= 32) {
-    return { resolution: 0.75, quality: 'medium' };
-  }
-
-  return { resolution: 0.75, quality: 'low' };
-};
-
 const bootBlackholeDemo = () => {
   const blackholeWindow = window as BlackholeWindow;
   const host = document.querySelector<HTMLElement>(HOST_SELECTOR);
@@ -580,6 +622,46 @@ const bootBlackholeDemo = () => {
   const friendTooltipDescription = friendTooltip?.querySelector<HTMLElement>(
     '[data-blackhole-friend-tooltip-description]',
   );
+  const planetPanel = document.querySelector<HTMLElement>(PLANET_PANEL_SELECTOR);
+  const planetPanelClose = planetPanel?.querySelector<HTMLButtonElement>(
+    PLANET_PANEL_CLOSE_SELECTOR,
+  );
+  const planetPanelType = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-type]',
+  );
+  const planetPanelName = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-name]',
+  );
+  const planetPanelDescription = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-description]',
+  );
+  const planetPanelPreview = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview]',
+  );
+  const planetPanelPreviewCopy = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-copy]',
+  );
+  const planetPanelLink = planetPanel?.querySelector<HTMLAnchorElement>(
+    '[data-blackhole-planet-panel-link]',
+  );
+  const planetPanelStatType = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-type]',
+  );
+  const planetPanelStatRadius = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-radius]',
+  );
+  const planetPanelStatTemperature = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-temperature]',
+  );
+  const planetPanelStatAtmosphere = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-atmosphere]',
+  );
+  const planetPanelStatOrbit = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-orbit]',
+  );
+  const planetPanelStatWeight = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-weight]',
+  );
 
   if (!canvasMount) {
     throw new Error('Missing blackhole demo mount points');
@@ -599,6 +681,7 @@ const bootBlackholeDemo = () => {
 
   const scene = new THREE.Scene();
   const overlayScene = new THREE.Scene();
+  const orbitScene = new THREE.Scene();
   const screenCamera = new THREE.Camera();
   screenCamera.position.z = 1;
 
@@ -606,11 +689,15 @@ const bootBlackholeDemo = () => {
   const renderPass = new RenderPass(scene, screenCamera);
   const overlayRenderPass = new RenderPass(overlayScene, screenCamera);
   overlayRenderPass.clear = false;
+  const orbitRenderPass = new RenderPass(orbitScene, screenCamera);
+  orbitRenderPass.clear = false;
+  orbitRenderPass.clearDepth = true;
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(128, 128), 1.0, 0.5, 0.6);
   const shaderPass = new ShaderPass(CopyShader);
   shaderPass.renderToScreen = true;
   composer.addPass(renderPass);
   composer.addPass(overlayRenderPass);
+  composer.addPass(orbitRenderPass);
   composer.addPass(bloomPass);
   composer.addPass(shaderPass);
 
@@ -618,20 +705,18 @@ const bootBlackholeDemo = () => {
   const textures = new Map<string, THREE.Texture | null>();
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
+  const glowTextures = new Map<FriendPlanetType, THREE.Texture>();
+  const planetGroup = new THREE.Group();
   const orbitGroup = new THREE.Group();
-  orbitGroup.renderOrder = 2;
-  overlayScene.add(orbitGroup);
+  overlayScene.add(planetGroup);
+  orbitScene.add(orbitGroup);
 
-  const friendPlanets: Array<{
-    data: FriendPlanet;
-    pivot: THREE.Group;
-    mesh: THREE.Mesh;
-    orbitRadius: number;
-    orbitSpeed: number;
-    hueShift: number;
-  }> = [];
+  const friendPlanets: PlanetEntry[] = [];
   const clickablePlanetMeshes: THREE.Mesh[] = [];
   let hoveredFriendPlanet: FriendPlanet | null = null;
+  let selectedPlanetEntry: PlanetEntry | null = null;
+  let detailPlanetEntry: PlanetEntry | null = null;
+  let focusPlanetEntry: PlanetEntry | null = null;
   const loadTexture = (
     name: string,
     url: string,
@@ -665,57 +750,358 @@ const bootBlackholeDemo = () => {
     return (await response.json()) as FriendPlanet[];
   };
 
-  const hashString = (value: string) => {
-    let hash = 0;
-
-    for (let index = 0; index < value.length; index += 1) {
-      hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  const getPlanetGlowTexture = (type: FriendPlanetType) => {
+    const existing = glowTextures.get(type);
+    if (existing) {
+      return existing;
     }
 
-    return hash;
-  };
+    const palette: Record<FriendPlanetType, string> = {
+      cold: '#cfe9ff',
+      cool: '#ffc28d',
+      warm: '#9fd2ff',
+      hot: '#ffb067',
+    };
 
-  const getInitialKey = (name: string) => {
-    const firstCharacter = name.trim().charAt(0).toUpperCase();
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
 
-    if (firstCharacter >= 'A' && firstCharacter <= 'Z') {
-      return firstCharacter;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      const fallback = new THREE.Texture();
+      glowTextures.set(type, fallback);
+      return fallback;
     }
 
-    return firstCharacter || '#';
+    const gradient = context.createRadialGradient(64, 64, 8, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.85)');
+    gradient.addColorStop(0.36, `${palette[type]}cc`);
+    gradient.addColorStop(0.68, `${palette[type]}40`);
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 128, 128);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    glowTextures.set(type, texture);
+    return texture;
   };
 
-  const getOrbitBand = (name: string) => {
-    const key = getInitialKey(name);
+  const getPlanetRadius = (friend: FriendPlanet, fallbackRadius: number) => {
+    const explicitRadius = friend.planet?.radius;
 
-    if (key >= 'A' && key <= 'F') return 0;
-    if (key >= 'G' && key <= 'L') return 1;
-    if (key >= 'M' && key <= 'R') return 2;
-    return 3;
-  };
-
-  const createOrbitLine = (radius: number) => {
-    const points: THREE.Vector3[] = [];
-
-    for (let step = 0; step <= 128; step += 1) {
-      const angle = (step / 128) * Math.PI * 2;
-      points.push(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+    if (
+      typeof explicitRadius === 'number' &&
+      Number.isFinite(explicitRadius) &&
+      explicitRadius > 0
+    ) {
+      return THREE.MathUtils.clamp(explicitRadius / 22000, 0.16, 0.88);
     }
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({
-      color: new THREE.Color('#c6ccd6'),
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false,
-    });
-    const line = new THREE.LineLoop(geometry, material);
-    line.rotation.x = Math.PI / 2.05;
-    line.position.y = -0.08;
-    return line;
+    return fallbackRadius;
   };
 
-  const createPlanetMaterial = (type: FriendPlanetType) => {
+  const getPlanetColor = (value: string | undefined, fallback: string) => {
+    const color = new THREE.Color(fallback);
+
+    if (!value) {
+      return color;
+    }
+
+    try {
+      color.set(value);
+    } catch {
+      color.set(fallback);
+    }
+
+    return color;
+  };
+
+  const getPlanetTemperatureBand = (profile?: FriendPlanetProfile) => {
+    const min = profile?.temperature?.min;
+    const max = profile?.temperature?.max;
+    const unit = profile?.temperature?.unit ?? 'C';
+
+    if (typeof min !== 'number' || typeof max !== 'number') {
+      return null;
+    }
+
+    const minKelvin = unit === 'K' ? min : min + 273.15;
+    const maxKelvin = unit === 'K' ? max : max + 273.15;
+
+    return {
+      minKelvin,
+      maxKelvin,
+      averageKelvin: (minKelvin + maxKelvin) * 0.5,
+    };
+  };
+
+  const getPlanetOrbitRadius = (friend: FriendPlanet, fallbackOrbitRadius: number) => {
+    const distance = friend.planet?.orbit?.distance_from_star;
+    const unit = friend.planet?.orbit?.distance_unit ?? 'AU';
+
+    if (typeof distance !== 'number' || !Number.isFinite(distance) || distance <= 0) {
+      return fallbackOrbitRadius;
+    }
+
+    const normalizedAu = unit === 'km' ? distance / 149_597_870.7 : distance;
+    return clamp(3.9 + normalizedAu * 1.95, 4.2, 11.8);
+  };
+
+  const getPlanetOrbitSpeed = (friend: FriendPlanet, fallbackOrbitSpeed: number) => {
+    const period = friend.planet?.orbit?.period;
+    const unit = friend.planet?.orbit?.period_unit ?? 'days';
+
+    if (typeof period !== 'number' || !Number.isFinite(period) || period <= 0) {
+      return fallbackOrbitSpeed;
+    }
+
+    const periodDays = unit === 'years' ? period * 365 : period;
+    const normalizedDays = clamp(periodDays, 40, 5000);
+    return clamp(0.012 * Math.pow(365 / normalizedDays, 0.34), 0.0032, 0.0135);
+  };
+
+  const getPlanetShellAppearance = (friend: FriendPlanet, type: FriendPlanetType) => {
+    const defaultShellColors: Record<FriendPlanetType, string> = {
+      cold: '#e6f4ff',
+      cool: '#ffd3ae',
+      warm: '#d9efff',
+      hot: '#ffd4aa',
+    };
+
+    const surfaceColor = getPlanetColor(friend.planet?.color, defaultShellColors[type]);
+    const atmosphereVisible = friend.planet?.atmosphere?.is_show ?? false;
+    const pressure = friend.planet?.atmosphere?.pressure ?? 0;
+    const shellOpacity = atmosphereVisible ? clamp(0.08 + pressure * 0.035, 0.1, 0.22) : 0.05;
+    const glowOpacity = clamp(
+      0.16 + (atmosphereVisible ? 0.08 : 0) + (type === 'hot' ? 0.06 : 0),
+      0.16,
+      0.34,
+    );
+
+    return {
+      color: surfaceColor.clone().lerp(new THREE.Color('#ffffff'), atmosphereVisible ? 0.48 : 0.24),
+      shellOpacity,
+      glowOpacity,
+    };
+  };
+
+  const formatPlanetTemperature = (profile?: FriendPlanetProfile) => {
+    const min = profile?.temperature?.min;
+    const max = profile?.temperature?.max;
+    const unit = profile?.temperature?.unit ?? 'C';
+
+    if (typeof min === 'number' && typeof max === 'number') {
+      return `${min} ~ ${max} ${unit}`;
+    }
+
+    return 'Unknown';
+  };
+
+  const formatPlanetAtmosphere = (profile?: FriendPlanetProfile) => {
+    if (!profile?.atmosphere?.is_show) {
+      return 'None';
+    }
+
+    const composition = profile.atmosphere.composition ?? 'Unknown';
+    const pressure = profile.atmosphere.pressure;
+    const pressureUnit = profile.atmosphere.pressure_unit ?? 'atm';
+
+    if (typeof pressure === 'number') {
+      return `${composition} / ${pressure} ${pressureUnit}`;
+    }
+
+    return composition;
+  };
+
+  const formatPlanetOrbit = (profile?: FriendPlanetProfile) => {
+    if (!profile?.orbit?.is_show) {
+      return 'Hidden';
+    }
+
+    const distance = profile.orbit.distance_from_star;
+    const distanceUnit = profile.orbit.distance_unit ?? 'AU';
+    const period = profile.orbit.period;
+    const periodUnit = profile.orbit.period_unit ?? 'days';
+
+    if (typeof distance === 'number' && typeof period === 'number') {
+      return `${distance} ${distanceUnit} / ${period} ${periodUnit}`;
+    }
+
+    if (typeof distance === 'number') {
+      return `${distance} ${distanceUnit}`;
+    }
+
+    return 'Unknown';
+  };
+
+  const formatPlanetWeight = (profile?: FriendPlanetProfile) => {
+    const value = profile?.weight?.value;
+    const unit = profile?.weight?.unit ?? 'kg';
+    const scientificNotation = profile?.weight?.scientific_notation;
+
+    if (typeof value === 'number' && scientificNotation) {
+      return `${value} x ${scientificNotation} ${unit}`;
+    }
+
+    if (typeof value === 'number') {
+      return `${value} ${unit}`;
+    }
+
+    return 'Unknown';
+  };
+
+  const getPlanetPreviewBackground = (friend: FriendPlanet) => {
+    const background = friend.planet?.background ?? '#07111d';
+    const color = friend.planet?.color ?? '#4f86d9';
+
+    return `radial-gradient(circle at 74% 26%, rgba(255,255,255,0.26), transparent 24%), radial-gradient(circle at 36% 44%, rgba(255,255,255,0.12), transparent 18%), linear-gradient(140deg, ${color}, ${background})`;
+  };
+
+  const lerpAngle = (current: number, target: number, alpha: number) => {
+    const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+    return current + delta * alpha;
+  };
+
+  const getPlanetEntryByMesh = (mesh?: THREE.Mesh) =>
+    friendPlanets.find((planetEntry) => planetEntry.mesh === mesh) ?? null;
+
+  const isPointerInsideBlackholeViewport = (clientX: number, clientY: number) => {
+    const bounds = renderer.domElement.getBoundingClientRect();
+
+    return (
+      clientX >= bounds.left &&
+      clientX <= bounds.right &&
+      clientY >= bounds.top &&
+      clientY <= bounds.bottom
+    );
+  };
+
+  const isInteractiveUiTarget = (target: EventTarget | null) =>
+    target instanceof Element &&
+    Boolean(
+      target.closest(
+        'a, button, input, textarea, select, summary, .site-header, .site-footer, [data-blackhole-planet-panel], [data-blackhole-night-warning]',
+      ),
+    );
+
+  const syncPointerFromClientPosition = (clientX: number, clientY: number) => {
+    const bounds = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((clientX - bounds.left) / bounds.width) * 2 - 1;
+    pointer.y = -((clientY - bounds.top) / bounds.height) * 2 + 1;
+  };
+
+  const syncPlanetDetailResolution = () => {
+    let nextBoost = 1;
+    const inspectionPlanet = detailPlanetEntry ?? focusPlanetEntry;
+
+    if (getSceneName() === 'home' && inspectionPlanet && performanceConfig.quality === 'medium') {
+      const inspectionPosition = inspectionPlanet.mesh.getWorldPosition(new THREE.Vector3());
+      const inspectionDistance = observer.position.distanceTo(inspectionPosition);
+      const inspectionThreshold = Math.max(inspectionPlanet.radius * 10, 3.4);
+
+      if (inspectionDistance <= inspectionThreshold) {
+        nextBoost = performanceConfig.resolution >= 1 ? 1.25 : 1.1;
+      }
+    }
+
+    if (Math.abs(state.detailResolutionBoost - nextBoost) >= 0.01) {
+      state.detailResolutionBoost = nextBoost;
+      setDemoSize();
+    }
+  };
+
+  const closePlanetInspection = () => {
+    detailPlanetEntry = null;
+    focusPlanetEntry = null;
+    syncPlanetDetailResolution();
+  };
+
+  const setSelectedPlanet = (planetEntry: PlanetEntry | null) => {
+    if (selectedPlanetEntry === planetEntry) {
+      return;
+    }
+
+    if (detailPlanetEntry && detailPlanetEntry !== planetEntry) {
+      closePlanetInspection();
+      planetPanel?.setAttribute('hidden', '');
+      planetPanel?.removeAttribute('data-active-planet');
+    }
+
+    selectedPlanetEntry = planetEntry;
+  };
+
+  const closePlanetPanel = () => {
+    closePlanetInspection();
+    selectedPlanetEntry = null;
+    planetPanel?.setAttribute('hidden', '');
+    planetPanel?.removeAttribute('data-active-planet');
+  };
+
+  const openPlanetInspection = (planetEntry: PlanetEntry) => {
+    setSelectedPlanet(planetEntry);
+    detailPlanetEntry = planetEntry;
+    focusPlanetEntry = planetEntry;
+    keyboardMoveControl.velocity.multiplyScalar(0.2);
+    openPlanetPanel(planetEntry.data);
+    syncPlanetDetailResolution();
+  };
+
+  const openPlanetPanel = (friend: FriendPlanet) => {
+    if (!planetPanel) {
+      return;
+    }
+
+    if (planetPanel.dataset.activePlanet === friend.name && !planetPanel.hasAttribute('hidden')) {
+      return;
+    }
+
+    planetPanel.dataset.activePlanet = friend.name;
+
+    planetPanel.removeAttribute('hidden');
+
+    if (planetPanelType) {
+      planetPanelType.textContent = `${friend.type} world`;
+    }
+    if (planetPanelName) {
+      planetPanelName.textContent = friend.name;
+    }
+    if (planetPanelDescription) {
+      planetPanelDescription.textContent = friend.description;
+    }
+    if (planetPanelStatType) {
+      planetPanelStatType.textContent = friend.type;
+    }
+    if (planetPanelStatRadius) {
+      planetPanelStatRadius.textContent = `${friend.planet?.radius ?? 'Unknown'} km`;
+    }
+    if (planetPanelStatTemperature) {
+      planetPanelStatTemperature.textContent = formatPlanetTemperature(friend.planet);
+    }
+    if (planetPanelStatAtmosphere) {
+      planetPanelStatAtmosphere.textContent = formatPlanetAtmosphere(friend.planet);
+    }
+    if (planetPanelStatOrbit) {
+      planetPanelStatOrbit.textContent = formatPlanetOrbit(friend.planet);
+    }
+    if (planetPanelStatWeight) {
+      planetPanelStatWeight.textContent = formatPlanetWeight(friend.planet);
+    }
+    if (planetPanelPreview) {
+      planetPanelPreview.style.background = getPlanetPreviewBackground(friend);
+    }
+    if (planetPanelPreviewCopy) {
+      planetPanelPreviewCopy.textContent = `${friend.name} overview`;
+    }
+    if (planetPanelLink) {
+      planetPanelLink.href = friend.url;
+    }
+  };
+
+  const createPlanetMaterial = (friend: FriendPlanet) => {
+    const type = friend.type;
     const palettes: Record<
       FriendPlanetType,
       {
@@ -772,36 +1158,66 @@ const bootBlackholeDemo = () => {
     };
 
     const palette = palettes[type];
+    const surfaceColor = getPlanetColor(friend.planet?.color, palette.dayA);
+    const shadowColor = getPlanetColor(friend.planet?.background, palette.night);
+    const atmosphereVisible = friend.planet?.atmosphere?.is_show ?? false;
+    const temperatureBand = getPlanetTemperatureBand(friend.planet);
+    const heatMix = temperatureBand
+      ? clamp((temperatureBand.averageKelvin - 240) / 1200, 0, 1)
+      : type === 'hot'
+        ? 1
+        : type === 'warm'
+          ? 0.3
+          : 0.12;
+    const emissionStrength = clamp(
+      palette.emissionStrength + heatMix * 0.12 + (atmosphereVisible ? 0.01 : 0),
+      0.005,
+      0.22,
+    );
+    const dayColorA = surfaceColor.clone().lerp(new THREE.Color('#ffffff'), 0.22);
+    const dayColorB = surfaceColor.clone().lerp(shadowColor, 0.4);
+    const nightColor = shadowColor.clone().multiplyScalar(0.96);
+    const rimColor = surfaceColor
+      .clone()
+      .lerp(new THREE.Color('#ffffff'), atmosphereVisible ? 0.62 : 0.38);
+    const detailColorA = surfaceColor
+      .clone()
+      .lerp(new THREE.Color('#fff4d6'), 0.18 + heatMix * 0.1);
+    const detailColorB = shadowColor.clone().lerp(surfaceColor, 0.22);
+    const emissionColor = getPlanetColor(friend.planet?.ring?.color, palette.emission).lerp(
+      surfaceColor,
+      0.34,
+    );
 
     return new THREE.ShaderMaterial({
       transparent: false,
       uniforms: {
         lightDirection: { value: new THREE.Vector3(0, 0, -1) },
         time: { value: 0 },
-        dayColorA: { value: new THREE.Color(palette.dayA) },
-        dayColorB: { value: new THREE.Color(palette.dayB) },
-        nightColor: { value: new THREE.Color(palette.night) },
-        rimColor: { value: new THREE.Color(palette.rim) },
-        detailColorA: { value: new THREE.Color(palette.detailA) },
-        detailColorB: { value: new THREE.Color(palette.detailB) },
-        emissionColor: { value: new THREE.Color(palette.emission) },
-        emissionStrength: { value: palette.emissionStrength },
+        dayColorA: { value: dayColorA },
+        dayColorB: { value: dayColorB },
+        nightColor: { value: nightColor },
+        rimColor: { value: rimColor },
+        detailColorA: { value: detailColorA },
+        detailColorB: { value: detailColorB },
+        emissionColor: { value: emissionColor },
+        emissionStrength: { value: emissionStrength },
       },
       vertexShader: `
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
         varying vec2 vUv;
 
         void main() {
-          vNormal = normalize(normalMatrix * normal);
+          vWorldNormal = normalize(mat3(modelMatrix) * normal);
           vec4 worldPosition = modelMatrix * vec4(position, 1.0);
           vWorldPosition = worldPosition.xyz;
           vUv = uv;
-          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
         varying vec2 vUv;
 
@@ -833,52 +1249,125 @@ const bootBlackholeDemo = () => {
         }
 
         void main() {
-          vec3 normal = normalize(vNormal);
+          vec3 normal = normalize(vWorldNormal);
           vec3 lightDir = normalize(lightDirection);
+          vec3 viewDir = normalize(cameraPosition - vWorldPosition);
           float diffuse = max(dot(normal, lightDir), 0.0);
-        float wrappedLight = smoothstep(-0.18, 0.92, dot(normal, lightDir));
-        float continentNoise = noise(vUv * 6.0 + vec2(time * 0.004, 0.0));
-        float detailNoise = noise(vUv * 16.0 + vec2(0.0, time * 0.003));
-        float bandNoise = sin(vUv.y * 18.0 + time * 0.3) * 0.5 + 0.5;
-        float craterMask = smoothstep(0.62, 0.88, noise(vUv * 28.0));
-        vec3 baseDay = mix(dayColorA, dayColorB, continentNoise);
-        vec3 detailColor = mix(detailColorA, detailColorB, detailNoise);
-        vec3 dayColor = mix(baseDay, detailColor, 0.32);
-        dayColor = mix(dayColor, detailColorA, bandNoise * emissionStrength * 0.4);
-        dayColor = mix(dayColor, detailColorB, craterMask * 0.24);
-        vec3 litColor = mix(nightColor, dayColor, wrappedLight);
-        float rim = pow(1.0 - max(dot(normal, normalize(-vWorldPosition)), 0.0), 2.4);
-        vec3 emissionGlow = emissionColor * emissionStrength * (0.45 + bandNoise * 0.55) * diffuse;
-        vec3 finalColor = litColor + rimColor * rim * 0.16 + emissionGlow;
-        gl_FragColor = vec4(finalColor, 1.0);
-      }
+          float wrappedLight = smoothstep(-0.18, 0.92, dot(normal, lightDir));
+          float ambientFloor = 0.18;
+          float litMix = ambientFloor + wrappedLight * (1.0 - ambientFloor);
+          float continentNoise = noise(vUv * 6.0 + vec2(time * 0.004, 0.0));
+          float detailNoise = noise(vUv * 16.0 + vec2(0.0, time * 0.003));
+          float bandNoise = sin(vUv.y * 18.0 + time * 0.3) * 0.5 + 0.5;
+          float craterMask = smoothstep(0.62, 0.88, noise(vUv * 28.0));
+          vec3 baseDay = mix(dayColorA, dayColorB, continentNoise);
+          vec3 detailColor = mix(detailColorA, detailColorB, detailNoise);
+          vec3 dayColor = mix(baseDay, detailColor, 0.32);
+          dayColor = mix(dayColor, detailColorA, bandNoise * emissionStrength * 0.4);
+          dayColor = mix(dayColor, detailColorB, craterMask * 0.24);
+          vec3 litColor = mix(nightColor, dayColor, litMix);
+          float silhouette = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.1);
+          float terminator = pow(1.0 - wrappedLight, 1.8) * diffuse;
+          vec3 emissionGlow = emissionColor * emissionStrength * (0.45 + bandNoise * 0.55) * (0.35 + diffuse * 0.65);
+          vec3 finalColor = litColor + rimColor * silhouette * 0.22 + rimColor * terminator * 0.08 + emissionGlow;
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
       `,
     });
   };
 
+  const createPlanetRing = (friend: FriendPlanet, planetRadius: number) => {
+    const ring = friend.planet?.ring;
+
+    if (!ring?.is_show) {
+      return null;
+    }
+
+    const sourceRadius = friend.planet?.radius;
+    const radiusRatio =
+      typeof sourceRadius === 'number' && sourceRadius > 0
+        ? 1 / sourceRadius
+        : 1 / Math.max(planetRadius, 1);
+    const innerScale = clamp((ring.inner_radius ?? 0) * radiusRatio || 1.28, 1.1, 2.8);
+    const outerScale = clamp(
+      (ring.outer_radius ?? 0) * radiusRatio || 1.62,
+      innerScale + 0.08,
+      3.4,
+    );
+    const ringColor = getPlanetColor(ring.color, '#d7d1c4');
+    const geometry = new THREE.RingGeometry(
+      planetRadius * innerScale,
+      planetRadius * outerScale,
+      96,
+    );
+    const material = new THREE.MeshBasicMaterial({
+      color: ringColor,
+      transparent: true,
+      opacity: 0.48,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.rotation.z = Math.PI * 0.18;
+    mesh.renderOrder = 3;
+    mesh.userData.baseOpacity = material.opacity;
+
+    return mesh;
+  };
+
   const buildFriendPlanetSystem = async () => {
     const friends = await loadFriendPlanets();
-    const orbitBaseRadii = [2.8, 3.45, 4.1, 4.85];
+    const orbitBaseRadii = [4.8, 5.8, 6.9, 8.1];
     const orbitBandOffsets = [0, 0, 0, 0];
 
     friends.forEach((friend, index) => {
       const hash = hashString(friend.name);
       const band = getOrbitBand(friend.name);
-      const orbitRadius =
-        orbitBaseRadii[band] + orbitBandOffsets[band] * 0.34 + ((hash % 11) / 10) * 0.1;
+      const fallbackOrbitRadius =
+        orbitBaseRadii[band] + orbitBandOffsets[band] * 0.48 + ((hash % 11) / 10) * 0.12;
       orbitBandOffsets[band] += 1;
-      const orbitSpeed = 0.08 + (hash % 7) * 0.008 + band * 0.01;
-      const size = 0.12 + ((hash >> 3) % 6) * 0.018 + (friend.type === 'hot' ? 0.04 : 0);
+      const fallbackOrbitSpeed = 0.008 + (hash % 5) * 0.0016 + band * 0.0012;
+      const defaultSize = 0.2 + ((hash >> 3) % 6) * 0.024 + (friend.type === 'hot' ? 0.03 : 0);
+      const size = getPlanetRadius(friend, defaultSize);
+      const orbitRadius = getPlanetOrbitRadius(friend, fallbackOrbitRadius);
+      const orbitSpeed = getPlanetOrbitSpeed(friend, fallbackOrbitSpeed);
       const inclination = ((hash % 9) - 4) * 0.015;
-      const initialAngle = ((hash % 360) / 180) * Math.PI + index * 0.18;
+      const initialAngle = THREE.MathUtils.lerp(Math.PI * 0.28, Math.PI * 0.56, (hash % 101) / 100);
       const hueShift = ((hash % 19) - 9) * 0.01;
 
       const pivot = new THREE.Group();
       pivot.rotation.z = inclination;
-      orbitGroup.add(pivot);
+      planetGroup.add(pivot);
 
-      const planetMaterial = createPlanetMaterial(friend.type);
+      const orbitPivot = new THREE.Group();
+      orbitPivot.rotation.z = inclination;
+      orbitGroup.add(orbitPivot);
+
+      const planetMaterial = createPlanetMaterial(friend);
       const planet = new THREE.Mesh(new THREE.SphereGeometry(size, 40, 40), planetMaterial);
+      const shellAppearance = getPlanetShellAppearance(friend, friend.type);
+      const shellMaterial = new THREE.MeshBasicMaterial({
+        color: shellAppearance.color,
+        transparent: true,
+        opacity: shellAppearance.shellOpacity,
+        depthWrite: false,
+        side: THREE.BackSide,
+      });
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(size * 1.04, 32, 32), shellMaterial);
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: getPlanetGlowTexture(friend.type),
+          color: shellAppearance.color.clone().lerp(new THREE.Color('#ffffff'), 0.3),
+          transparent: true,
+          opacity: shellAppearance.glowOpacity,
+          depthWrite: false,
+          depthTest: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      );
+      glow.scale.setScalar(size * 4.6);
+      const ring = createPlanetRing(friend, size);
       planet.position.set(
         Math.cos(initialAngle) * orbitRadius,
         0,
@@ -887,17 +1376,45 @@ const bootBlackholeDemo = () => {
       planet.userData.friendPlanet = friend;
       planet.userData.tidalLocked = true;
       pivot.add(planet);
+      shell.position.copy(planet.position);
+      pivot.add(shell);
+      glow.position.copy(planet.position);
+      pivot.add(glow);
+      if (ring) {
+        ring.position.copy(planet.position);
+        pivot.add(ring);
+      }
 
       const orbitLine = createOrbitLine(orbitRadius);
-      pivot.add(orbitLine);
+      orbitLine.renderOrder = 2;
+      orbitLine.frustumCulled = false;
+      orbitLine.visible = friend.planet?.orbit?.is_show ?? true;
+      orbitPivot.add(orbitLine);
+      const orbitOccluder = new THREE.Mesh(
+        new THREE.SphereGeometry(size * 1.02, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0x000000 }),
+      );
+      orbitOccluder.material.colorWrite = false;
+      orbitOccluder.renderOrder = 1;
+      orbitOccluder.frustumCulled = false;
+      orbitPivot.add(orbitOccluder);
 
       friendPlanets.push({
         data: friend,
         pivot,
         mesh: planet,
+        shell,
+        glow,
+        ring,
+        orbitOccluder,
+        shellBaseColor: shellAppearance.color,
+        shellBaseOpacity: shellAppearance.shellOpacity,
+        glowBaseOpacity: shellAppearance.glowOpacity,
+        radius: size,
         orbitRadius,
         orbitSpeed,
         hueShift,
+        phase: initialAngle + index * 0.18,
       });
       clickablePlanetMeshes.push(planet);
     });
@@ -956,10 +1473,21 @@ const bootBlackholeDemo = () => {
     uniforms,
     vertexShader,
     fragmentShader: `${getShaderDefines(performanceConfig.quality)}${fragmentShader}`,
+    depthTest: false,
+    depthWrite: false,
   });
 
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
   scene.add(mesh);
+
+  const blackholeOccluder = new THREE.Mesh(
+    new THREE.SphereGeometry(1.03, 48, 48),
+    new THREE.MeshBasicMaterial({ color: 0x000000 }),
+  );
+  blackholeOccluder.material.colorWrite = false;
+  blackholeOccluder.renderOrder = 0;
+  blackholeOccluder.frustumCulled = false;
+  orbitScene.add(blackholeOccluder);
 
   const observer = new Observer(60.0, 1, 1, 80000);
   observer.distance = cameraConfig.distance;
@@ -968,8 +1496,9 @@ const bootBlackholeDemo = () => {
   observer.up.applyMatrix4(new THREE.Matrix4().makeRotationZ(observer.incline));
   scene.add(observer);
   const observerBaseUp = observer.up.clone();
+  const homeBaseDirection = observer.position.clone().normalize();
 
-  const cameraControl = new CameraDragControls();
+  const cameraControl = new CameraDragControls(renderer.domElement);
   const keyboardMoveControl = new KeyboardMoveControls();
   const getSceneName = () => (pageHost?.dataset.blackholeScene as SceneName | undefined) ?? 'home';
 
@@ -985,10 +1514,15 @@ const bootBlackholeDemo = () => {
     performanceSampleTime: 0,
     performanceSampleFrames: 0,
     performanceSettled: false,
+    detailResolutionBoost: 1,
   };
 
   const origin = new THREE.Vector3(0, 0, 0);
+  const worldUp = new THREE.Vector3(0, 1, 0);
   const moveAnchor = new THREE.Vector3(0, 0, 0);
+  const homeBasePosition = new THREE.Vector3();
+  const homeForward = new THREE.Vector3();
+  const currentCameraPosition = new THREE.Vector3();
   const baseForward = new THREE.Vector3();
   const right = new THREE.Vector3();
   const lookTarget = new THREE.Vector3();
@@ -999,6 +1533,19 @@ const bootBlackholeDemo = () => {
   const orbitPitchAxis = new THREE.Vector3();
   const rotatedPosition = new THREE.Vector3();
   const rotatedVelocity = new THREE.Vector3();
+  const cameraLookTarget = new THREE.Vector3();
+  const yawAdjustedLookTarget = new THREE.Vector3();
+  const yawAdjustedRight = new THREE.Vector3();
+  const pitchAxis = new THREE.Vector3();
+  const focusPlanetPosition = new THREE.Vector3();
+  const focusOutward = new THREE.Vector3();
+  const focusDesiredPosition = new THREE.Vector3();
+  const focusDesiredForward = new THREE.Vector3();
+  const shellScaleTarget = new THREE.Vector3();
+
+  const initialHomeForward = origin.clone().sub(observer.position).normalize();
+  cameraControl.yaw = Math.atan2(initialHomeForward.x, -initialHomeForward.z);
+  cameraControl.pitch = Math.asin(clamp(initialHomeForward.y, -1, 1));
 
   const getSceneTarget = (): SceneTarget => {
     const sceneName = getSceneName();
@@ -1010,7 +1557,7 @@ const bootBlackholeDemo = () => {
         orbit: true,
         dragEnabled: false,
         dragRecenter: 0.18,
-        keyboardRecenter: 0.18,
+        keyboardRecenter: 0,
         keyboardEnabled: false,
         autoYaw: Math.PI,
         autoPitch: -0.04,
@@ -1031,7 +1578,7 @@ const bootBlackholeDemo = () => {
         orbit: true,
         dragEnabled: false,
         dragRecenter: 0.16,
-        keyboardRecenter: 0.18,
+        keyboardRecenter: 0,
         keyboardEnabled: false,
         autoYaw: 1.82,
         autoPitch: 0.005,
@@ -1047,32 +1594,23 @@ const bootBlackholeDemo = () => {
 
     const approachProgress = smoothstep(0.03, 0.68, state.scrollProgress);
     const emergeProgress = smoothstep(0.68, 0.92, state.scrollProgress);
-    const recenterProgress = smoothstep(0.08, 0.34, state.scrollProgress);
     const starfieldRotation = Math.max(emergeProgress, smoothstep(0.8, 1, state.scrollProgress));
-    const manualOrbitAllowed = state.scrollProgress < 0.06;
-    const horizonViewProgress = smoothstep(0.14, 0.76, state.scrollProgress);
-
-    const autoYawStart = 0.16;
-    const autoYawStop = 0.44;
-    const autoYawWindow =
-      smoothstep(autoYawStart, autoYawStart + 0.1, state.scrollProgress) *
-      (1 - smoothstep(autoYawStop - 0.08, autoYawStop, state.scrollProgress));
 
     return {
       distance: THREE.MathUtils.lerp(10, 1.52, approachProgress),
       fov: THREE.MathUtils.lerp(90, 104, approachProgress * (1 - emergeProgress * 0.5)),
-      orbit: state.scrollProgress < 0.04,
+      orbit: false,
       dragEnabled: true,
-      dragRecenter: recenterProgress * 0.12,
-      keyboardRecenter: manualOrbitAllowed ? 0 : recenterProgress * 0.12,
+      dragRecenter: 0,
+      keyboardRecenter: 0,
       keyboardEnabled: true,
-      autoYaw: THREE.MathUtils.lerp(0, 1.05, horizonViewProgress) * autoYawWindow,
-      autoPitch: THREE.MathUtils.lerp(0, -0.2, smoothstep(0.2, 0.84, state.scrollProgress)),
+      autoYaw: 0,
+      autoPitch: 0,
       forwardOffset: THREE.MathUtils.lerp(0, 14, emergeProgress),
       verticalOffset: THREE.MathUtils.lerp(0, -0.85, emergeProgress),
       rightOffset: 0,
       driftAmplitude: 0.72 * starfieldRotation,
-      starYawSpeed: 0.08 * starfieldRotation,
+      starYawSpeed: 0,
       storyReveal: smoothstep(0.72, 0.96, state.scrollProgress),
       riskVisibility:
         smoothstep(0.22, 0.38, state.scrollProgress) *
@@ -1083,7 +1621,7 @@ const bootBlackholeDemo = () => {
   const setDemoSize = () => {
     const width = Math.max(canvasMount.clientWidth, 1);
     const height = Math.max(canvasMount.clientHeight, 1);
-    const resolutionScale = performanceConfig.resolution;
+    const resolutionScale = performanceConfig.resolution * state.detailResolutionBoost;
     renderer.setPixelRatio(window.devicePixelRatio * resolutionScale);
     renderer.setSize(width, height, false);
     composer.setSize(width * resolutionScale, height * resolutionScale);
@@ -1110,6 +1648,8 @@ const bootBlackholeDemo = () => {
         uniforms,
         vertexShader,
         fragmentShader: `${getShaderDefines(performanceConfig.quality)}${fragmentShader}`,
+        depthTest: false,
+        depthWrite: false,
       });
 
       mesh.material = nextMaterial;
@@ -1225,14 +1765,132 @@ const bootBlackholeDemo = () => {
     observer.distance = cameraConfig.distance;
     observer.fov = cameraConfig.fov;
 
-    if (sceneName === 'home' && state.scrollProgress > 0.06) {
-      const orbitBrake = THREE.MathUtils.lerp(
-        0.18,
-        0.82,
-        smoothstep(0.06, 0.18, state.scrollProgress),
+    if (sceneName === 'home') {
+      homeBasePosition.copy(homeBaseDirection).multiplyScalar(cameraConfig.distance);
+      const isPlanetFocusTransitionActive = focusPlanetEntry !== null;
+
+      cameraControl.setEnabled(target.dragEnabled && !isPlanetFocusTransitionActive);
+      cameraControl.update(target.dragRecenter);
+
+      homeForward.set(
+        Math.sin(cameraControl.yaw) * Math.cos(cameraControl.pitch),
+        Math.sin(cameraControl.pitch),
+        -Math.cos(cameraControl.yaw) * Math.cos(cameraControl.pitch),
       );
-      observer.angularVelocity = THREE.MathUtils.lerp(observer.angularVelocity, 0, orbitBrake);
+      homeForward.normalize();
+
+      right.crossVectors(homeForward, worldUp);
+      if (right.lengthSq() <= 1e-6) {
+        right.set(1, 0, 0);
+      } else {
+        right.normalize();
+      }
+      upVector.crossVectors(right, homeForward).normalize();
+
+      currentCameraPosition.copy(homeBasePosition).add(keyboardMoveControl.offset);
+      keyboardMoveControl.update(
+        delta,
+        currentCameraPosition.length(),
+        target.keyboardEnabled && !isPlanetFocusTransitionActive,
+        0,
+        {
+          forward: homeForward,
+          right,
+          up: worldUp,
+        },
+      );
+
+      currentCameraPosition.copy(homeBasePosition).add(keyboardMoveControl.offset);
+      friendPlanets.forEach((planetEntry) => {
+        const worldPlanetPosition = planetEntry.mesh.getWorldPosition(new THREE.Vector3());
+        const minimumDistance = planetEntry.radius + 0.72;
+        const distanceToPlanet = currentCameraPosition.distanceTo(worldPlanetPosition);
+
+        if (distanceToPlanet < minimumDistance) {
+          const pushDirection = currentCameraPosition.clone().sub(worldPlanetPosition);
+
+          if (pushDirection.lengthSq() <= 1e-6) {
+            pushDirection.copy(homeForward).negate();
+          }
+
+          pushDirection.normalize();
+          currentCameraPosition.copy(
+            worldPlanetPosition.add(pushDirection.multiplyScalar(minimumDistance)),
+          );
+          keyboardMoveControl.velocity.multiplyScalar(0.24);
+          openPlanetInspection(planetEntry);
+        }
+      });
+
+      if (focusPlanetEntry) {
+        const focusBlend = clamp(1 - Math.exp(-delta * 4.6), 0.08, 0.24);
+        const focusDistance = clamp(focusPlanetEntry.radius * 2.9 + 0.64, 1.2, 2.2);
+
+        focusPlanetEntry.mesh.getWorldPosition(focusPlanetPosition);
+        focusOutward.copy(focusPlanetPosition);
+
+        if (focusOutward.lengthSq() <= 1e-6) {
+          focusOutward.copy(homeForward).negate();
+        } else {
+          focusOutward.normalize();
+        }
+
+        focusDesiredPosition
+          .copy(focusPlanetPosition)
+          .addScaledVector(focusOutward, focusDistance)
+          .addScaledVector(worldUp, Math.max(0.08, focusPlanetEntry.radius * 0.2));
+
+        currentCameraPosition.lerp(focusDesiredPosition, focusBlend);
+        keyboardMoveControl.velocity.multiplyScalar(0.72);
+
+        focusDesiredForward.copy(focusPlanetPosition).sub(currentCameraPosition);
+        if (focusDesiredForward.lengthSq() > 1e-6) {
+          focusDesiredForward.normalize();
+          cameraControl.yaw = lerpAngle(
+            cameraControl.yaw,
+            Math.atan2(focusDesiredForward.x, -focusDesiredForward.z),
+            focusBlend,
+          );
+          cameraControl.pitch = THREE.MathUtils.lerp(
+            cameraControl.pitch,
+            Math.asin(clamp(focusDesiredForward.y, -1, 1)),
+            focusBlend,
+          );
+        }
+
+        if (
+          currentCameraPosition.distanceToSquared(focusDesiredPosition) <= 0.01 &&
+          focusDesiredForward.angleTo(homeForward) <= 0.04
+        ) {
+          focusPlanetEntry = null;
+        }
+      }
+
+      if (currentCameraPosition.lengthSq() > 0) {
+        if (currentCameraPosition.length() < 2.1) {
+          currentCameraPosition.setLength(2.1);
+        } else if (currentCameraPosition.length() > 96) {
+          currentCameraPosition.setLength(96);
+        }
+      }
+      keyboardMoveControl.offset.copy(currentCameraPosition).sub(homeBasePosition);
+
+      observer.position.copy(currentCameraPosition);
+      observer.velocity.set(0, 0, 0);
+      observer.up.copy(upVector);
+      observer.direction.copy(homeForward);
+      cameraLookTarget.copy(observer.position).add(observer.direction);
+      observer.lookAt(cameraLookTarget);
+      observer.updateMatrixWorld();
+      syncPlanetDetailResolution();
+
+      moveAnchor.copy(keyboardMoveControl.offset);
+      pageHost?.style.setProperty('--story-reveal', target.storyReveal.toFixed(4));
+      pageHost?.style.setProperty('--risk-visibility', target.riskVisibility.toFixed(4));
+      return;
     }
+
+    observer.distance = cameraConfig.distance;
 
     orbitUpAxis.copy(observerBaseUp).normalize();
     rotatedPosition.copy(observer.position);
@@ -1284,15 +1942,21 @@ const bootBlackholeDemo = () => {
       upVector,
       yawOffset + starYawOffset,
     );
-    const pitchAxis = new THREE.Vector3().crossVectors(lookTarget, upVector).normalize();
+    yawAdjustedLookTarget.copy(lookTarget).applyQuaternion(yawQuaternion);
+    yawAdjustedRight.copy(right).applyQuaternion(yawQuaternion).normalize();
+    pitchAxis.copy(yawAdjustedRight);
     const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(pitchAxis, pitchOffset);
 
-    lookTarget.applyQuaternion(yawQuaternion);
+    lookTarget.copy(yawAdjustedLookTarget);
     if (pitchAxis.lengthSq() > 0) {
       lookTarget.applyQuaternion(pitchQuaternion);
     }
 
     observer.direction.copy(lookTarget.normalize());
+    cameraLookTarget.copy(observer.position).add(observer.direction);
+    observer.lookAt(cameraLookTarget);
+    observer.updateMatrixWorld();
+
     keyboardMoveControl.update(
       delta,
       observer.distance,
@@ -1310,16 +1974,16 @@ const bootBlackholeDemo = () => {
   };
 
   const updateUniforms = () => {
-    observer.distance = cameraConfig.distance;
     observer.moving = cameraConfig.orbit;
     observer.fov = cameraConfig.fov;
     overlayRenderPass.camera = observer;
+    orbitRenderPass.camera = observer;
 
     uniforms.time.value = state.time;
     uniforms.cam_pos.value.copy(observer.position);
     uniforms.cam_dir.value.copy(observer.direction);
     uniforms.cam_up.value.copy(observer.up);
-    uniforms.cam_vel.value.copy(observer.velocity);
+    uniforms.cam_vel.value.copy(getSceneName() === 'home' ? origin : observer.velocity);
     uniforms.fov.value = observer.fov;
     uniforms.bg_texture.value = textures.get('bg1') ?? null;
     uniforms.star_texture.value = textures.get('star') ?? null;
@@ -1359,20 +2023,72 @@ const bootBlackholeDemo = () => {
 
     orbitGroup.visible = true;
 
-    friendPlanets.forEach((planetEntry, index) => {
-      const angle = state.time * planetEntry.orbitSpeed + index * 1.18;
-      const yOffset = Math.sin(state.time * 0.32 + index) * 0.03;
+    friendPlanets.forEach((planetEntry) => {
+      const angle = state.time * planetEntry.orbitSpeed + planetEntry.phase;
 
       planetEntry.mesh.position.set(
         Math.cos(angle) * planetEntry.orbitRadius,
-        yOffset,
+        0,
         Math.sin(angle) * planetEntry.orbitRadius,
       );
+      planetEntry.shell.position.copy(planetEntry.mesh.position);
+      planetEntry.glow.position.copy(planetEntry.mesh.position);
+      planetEntry.ring?.position.copy(planetEntry.mesh.position);
+      planetEntry.orbitOccluder.position.copy(planetEntry.mesh.position);
+
+      const shellMaterial = planetEntry.shell.material;
+      const glowMaterial = planetEntry.glow.material;
+      const isSelected = planetEntry === selectedPlanetEntry;
+
+      shellScaleTarget.setScalar(isSelected ? 1.1 : 1);
+      planetEntry.shell.scale.lerp(shellScaleTarget, isSelected ? 0.2 : 0.14);
+
+      if (shellMaterial instanceof THREE.MeshBasicMaterial) {
+        shellMaterial.color.copy(
+          isSelected
+            ? planetEntry.shellBaseColor.clone().lerp(new THREE.Color('#ffffff'), 0.5)
+            : planetEntry.shellBaseColor,
+        );
+        shellMaterial.opacity = THREE.MathUtils.lerp(
+          shellMaterial.opacity,
+          isSelected
+            ? Math.max(0.28, planetEntry.shellBaseOpacity + 0.08)
+            : planetEntry.shellBaseOpacity,
+          isSelected ? 0.2 : 0.14,
+        );
+      }
+
+      if (glowMaterial instanceof THREE.SpriteMaterial) {
+        glowMaterial.opacity = THREE.MathUtils.lerp(
+          glowMaterial.opacity,
+          isSelected
+            ? Math.max(0.18, planetEntry.glowBaseOpacity - 0.06)
+            : planetEntry.glowBaseOpacity,
+          isSelected ? 0.18 : 0.12,
+        );
+      }
+
+      const ringMaterial = planetEntry.ring?.material;
+      if (ringMaterial instanceof THREE.MeshBasicMaterial) {
+        const baseOpacity = (planetEntry.ring?.userData.baseOpacity as number | undefined) ?? 0.48;
+        ringMaterial.opacity = THREE.MathUtils.lerp(
+          ringMaterial.opacity,
+          isSelected ? Math.min(baseOpacity + 0.14, 0.72) : baseOpacity,
+          isSelected ? 0.16 : 0.12,
+        );
+      }
     });
   };
 
   const updatePlanetInteractivity = (event?: PointerEvent) => {
     const isHome = getSceneName() === 'home';
+
+    if (cameraControl.isPointerLocked) {
+      hoveredFriendPlanet = null;
+      canvasMount.style.cursor = 'none';
+      friendTooltip?.setAttribute('hidden', '');
+      return;
+    }
 
     canvasMount.style.cursor = isHome ? 'auto' : '';
     if (!isHome || clickablePlanetMeshes.length === 0) {
@@ -1415,9 +2131,17 @@ const bootBlackholeDemo = () => {
   };
 
   const onPointerCanvasMove = (event: PointerEvent) => {
-    const bounds = renderer.domElement.getBoundingClientRect();
-    pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
-    pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+    if (cameraControl.isPointerLocked) {
+      pointer.set(0, 0);
+      return;
+    }
+
+    if (!isPointerInsideBlackholeViewport(event.clientX, event.clientY)) {
+      onCanvasPointerLeave();
+      return;
+    }
+
+    syncPointerFromClientPosition(event.clientX, event.clientY);
     updatePlanetInteractivity(event);
   };
 
@@ -1427,19 +2151,34 @@ const bootBlackholeDemo = () => {
     friendTooltip?.setAttribute('hidden', '');
   };
 
-  const onCanvasClick = () => {
-    if (getSceneName() !== 'home') {
+  const onCanvasClick = (event: MouseEvent) => {
+    if (
+      getSceneName() !== 'home' ||
+      cameraControl.isPointerLocked ||
+      isInteractiveUiTarget(event.target) ||
+      !isPointerInsideBlackholeViewport(event.clientX, event.clientY)
+    ) {
       return;
     }
+
+    syncPointerFromClientPosition(event.clientX, event.clientY);
 
     raycaster.setFromCamera(pointer, observer);
     const intersections = raycaster.intersectObjects(clickablePlanetMeshes, false);
     const clickedPlanet = intersections[0]?.object as THREE.Mesh | undefined;
-    const targetUrl = clickedPlanet?.userData.friendPlanet?.url as string | undefined;
+    const clickedPlanetEntry = getPlanetEntryByMesh(clickedPlanet);
 
-    if (targetUrl) {
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    if (!clickedPlanetEntry) {
+      setSelectedPlanet(null);
+      return;
     }
+
+    if (selectedPlanetEntry !== clickedPlanetEntry) {
+      setSelectedPlanet(clickedPlanetEntry);
+      return;
+    }
+
+    openPlanetInspection(clickedPlanetEntry);
   };
 
   const updateReadableContrast = () => {
@@ -1618,13 +2357,13 @@ const bootBlackholeDemo = () => {
   document.addEventListener('mouseup', clearSelectionGuard, true);
   document.addEventListener('astro:page-load', refreshPageBindings);
   window.addEventListener('pointermove', onPointerMove, { passive: true });
-  renderer.domElement.addEventListener('pointermove', onPointerCanvasMove, { passive: true });
-  renderer.domElement.addEventListener('pointerleave', onCanvasPointerLeave);
-  renderer.domElement.addEventListener('click', onCanvasClick);
+  window.addEventListener('pointermove', onPointerCanvasMove, { passive: true });
+  window.addEventListener('click', onCanvasClick);
   window.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('scroll', syncScrollState, { passive: true });
   window.addEventListener('resize', onViewportChange);
   nightWarningConfirm?.addEventListener('click', dismissNightWarning);
+  planetPanelClose?.addEventListener('click', closePlanetPanel);
   document.addEventListener('dragstart', (event) => {
     if (!(event.altKey && event instanceof MouseEvent && event.button === 0)) {
       event.preventDefault();
@@ -1641,18 +2380,20 @@ const bootBlackholeDemo = () => {
       document.removeEventListener('mouseup', clearSelectionGuard, true);
       document.removeEventListener('astro:page-load', refreshPageBindings);
       window.removeEventListener('pointermove', onPointerMove);
-      renderer.domElement.removeEventListener('pointermove', onPointerCanvasMove);
-      renderer.domElement.removeEventListener('pointerleave', onCanvasPointerLeave);
-      renderer.domElement.removeEventListener('click', onCanvasClick);
+      window.removeEventListener('pointermove', onPointerCanvasMove);
+      window.removeEventListener('click', onCanvasClick);
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('scroll', syncScrollState);
       window.removeEventListener('resize', onViewportChange);
       nightWarningConfirm?.removeEventListener('click', dismissNightWarning);
+      planetPanelClose?.removeEventListener('click', closePlanetPanel);
+      cameraControl.dispose();
       keyboardMoveControl.dispose();
       renderer.dispose();
       mesh.geometry.dispose();
       material.dispose();
       textures.forEach((texture) => texture?.dispose());
+      glowTextures.forEach((texture) => texture.dispose());
       if (renderer.domElement.parentElement === canvasMount) {
         canvasMount.removeChild(renderer.domElement);
       }

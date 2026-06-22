@@ -77,6 +77,71 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
               data-blackhole-friend-tooltip-description
             />
           </div>
+
+          <aside class="blackhole-planet-panel" data-blackhole-planet-panel hidden>
+            <div class="blackhole-planet-panel-card shell">
+              <div class="blackhole-planet-panel-header">
+                <div>
+                  <p class="blackhole-planet-panel-type" data-blackhole-planet-panel-type />
+                  <h3 class="blackhole-planet-panel-name" data-blackhole-planet-panel-name />
+                </div>
+                <button
+                  type="button"
+                  class="blackhole-planet-panel-close"
+                  data-blackhole-planet-panel-close
+                  aria-label="关闭星球概览"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div class="blackhole-planet-panel-preview" data-blackhole-planet-panel-preview>
+                <p data-blackhole-planet-panel-preview-copy>Planet Overview</p>
+              </div>
+
+              <p
+                class="blackhole-planet-panel-description"
+                data-blackhole-planet-panel-description
+              />
+
+              <dl class="blackhole-planet-panel-stats">
+                <div>
+                  <dt>性格类型</dt>
+                  <dd data-blackhole-planet-panel-stat-type />
+                </div>
+                <div>
+                  <dt>半径</dt>
+                  <dd data-blackhole-planet-panel-stat-radius />
+                </div>
+                <div>
+                  <dt>温度</dt>
+                  <dd data-blackhole-planet-panel-stat-temperature />
+                </div>
+                <div>
+                  <dt>大气</dt>
+                  <dd data-blackhole-planet-panel-stat-atmosphere />
+                </div>
+                <div>
+                  <dt>轨道</dt>
+                  <dd data-blackhole-planet-panel-stat-orbit />
+                </div>
+                <div>
+                  <dt>质量</dt>
+                  <dd data-blackhole-planet-panel-stat-weight />
+                </div>
+              </dl>
+
+              <a
+                class="blackhole-planet-panel-link"
+                data-blackhole-planet-panel-link
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                访问友链
+              </a>
+            </div>
+          </aside>
         </>
       )
     }

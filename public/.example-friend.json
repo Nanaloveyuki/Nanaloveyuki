@@ -3,50 +3,50 @@
     "name": "Snowykami",
     "url": "https://sfkm.me",
     "type": "warm",
-    "description": "古希腊掌管轻雪的神",
+    "description": "示例友联数据，可按需替换为真实站点信息。",
     "planet": {
-      "width": 512,
-      "height": 512,
-      "radius": 7820,
-      "color": "#6ea8ff",
+      "width": 100,
+      "height": 100,
+      "radius": 50,
+      "color": "#00aaff",
       "color_comment": "这里是行星的外表颜色",
-      "background": "#112347",
+      "background": "#001122",
       "background_comment": "这里是行星的背景颜色",
       "ring": {
         "is_show": true,
-        "inner_radius": 9650,
-        "outer_radius": 12400,
-        "color": "#b7d8ff",
+        "inner_radius": 60,
+        "outer_radius": 70,
+        "color": "#ffaa00",
         "color_comment": "这里是行星环的颜色"
       },
       "temperature": {
-        "min": -36,
-        "max": 14,
+        "min": -50,
+        "max": 50,
         "unit": "C",
         "unit_comment": "只接受 C(摄氏度) 和 K (开尔文)",
         "comment": "这里是行星的温度范围和单位"
       },
       "atmosphere": {
         "is_show": true,
-        "composition": "氮气、氧气、微量氩",
+        "composition": "氮气、氧气",
         "composition_comment": "这里是行星大气的成分",
-        "pressure": 1.05,
+        "pressure": 1,
         "pressure_unit": "atm",
         "pressure_unit_comment": "只接受 atm (大气压) 和 Pa (帕斯卡)",
         "comment": "这里是行星大气的压力和单位"
       },
       "orbit": {
         "is_show": true,
-        "distance_from_star": 1.18,
+        "distance_from_star": 1,
         "distance_unit": "AU",
         "distance_unit_comment": "只接受 AU (天文单位) 和 km (千米)",
-        "period": 412,
+        "period": 365,
         "period_unit": "days",
         "period_unit_comment": "只接受 days (天) 和 years (年)",
         "comment": "这里是行星的轨道信息，包括距离和周期"
       },
       "weight": {
-        "value": 6.84,
+        "value": 5.972,
         "unit": "kg",
         "scientific_notation": "10**24"
       }

@@ -164,6 +164,8 @@ export type BlackholeWindow = Window & {
   __BLACKHOLE_DEMO_INITIALIZED__?: boolean;
   __BLACKHOLE_DEMO_REFRESH__?: () => void;
   __BLACKHOLE_DEMO_HOST__?: HTMLElement | null;
+  __BLACKHOLE_RUNTIME_MODE__?: 'home' | 'orbit' | null;
+  __BLACKHOLE_DISPOSE__?: () => void;
 };
 
 export type ControlBasis = {

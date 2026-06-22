@@ -582,6 +582,13 @@ void main() {
 
 const bootBlackholeDemo = () => {
   const blackholeWindow = window as BlackholeWindow;
+  if (
+    blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ &&
+    blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ !== 'home'
+  ) {
+    blackholeWindow.__BLACKHOLE_DISPOSE__?.();
+  }
+
   const host = document.querySelector<HTMLElement>(HOST_SELECTOR);
 
   if (!host) {
@@ -603,6 +610,7 @@ const bootBlackholeDemo = () => {
 
   blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = true;
   blackholeWindow.__BLACKHOLE_DEMO_HOST__ = host;
+  blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ = 'home';
 
   const canvasMount = host.querySelector<HTMLElement>('[data-blackhole-canvas]');
   let pageHost = document.querySelector<HTMLElement>(PAGE_SELECTOR);
@@ -613,14 +621,8 @@ const bootBlackholeDemo = () => {
     NIGHT_WARNING_CONFIRM_SELECTOR,
   );
   const friendTooltip = document.querySelector<HTMLElement>(FRIEND_TOOLTIP_SELECTOR);
-  const friendTooltipType = friendTooltip?.querySelector<HTMLElement>(
-    '[data-blackhole-friend-tooltip-type]',
-  );
   const friendTooltipName = friendTooltip?.querySelector<HTMLElement>(
     '[data-blackhole-friend-tooltip-name]',
-  );
-  const friendTooltipDescription = friendTooltip?.querySelector<HTMLElement>(
-    '[data-blackhole-friend-tooltip-description]',
   );
   const planetPanel = document.querySelector<HTMLElement>(PLANET_PANEL_SELECTOR);
   const planetPanelClose = planetPanel?.querySelector<HTMLButtonElement>(
@@ -2570,27 +2572,20 @@ const bootBlackholeDemo = () => {
       return;
     }
 
-    if (friendTooltipType) {
-      friendTooltipType.textContent = hoveredFriendPlanet.type;
-    }
     if (friendTooltipName) {
       friendTooltipName.textContent = hoveredFriendPlanet.name;
     }
-    if (friendTooltipDescription) {
-      friendTooltipDescription.textContent = hoveredFriendPlanet.description;
-    }
 
     if (!event) {
-      friendTooltip.setAttribute('hidden', '');
       return;
     }
 
     friendTooltip.removeAttribute('hidden');
 
     const tooltipOffsetX = 18;
-    const tooltipOffsetY = 18;
-    friendTooltip.style.left = `${Math.min(window.innerWidth - 320, Math.max(16, event.clientX + tooltipOffsetX))}px`;
-    friendTooltip.style.top = `${Math.min(window.innerHeight - 180, Math.max(16, event.clientY + tooltipOffsetY))}px`;
+    const tooltipOffsetY = -20;
+    friendTooltip.style.left = `${Math.max(16, Math.min(window.innerWidth - 16, event.clientX + tooltipOffsetX))}px`;
+    friendTooltip.style.top = `${Math.max(16, Math.min(window.innerHeight - 16, event.clientY + tooltipOffsetY))}px`;
   };
 
   const onPointerCanvasMove = (event: PointerEvent) => {
@@ -2833,39 +2828,47 @@ const bootBlackholeDemo = () => {
     }
   });
 
-  window.addEventListener(
-    'pagehide',
-    () => {
-      window.cancelAnimationFrame(state.rafId);
-      resizeObserver.disconnect();
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      document.removeEventListener('mousedown', selectionGuard, true);
-      document.removeEventListener('mouseup', clearSelectionGuard, true);
-      document.removeEventListener('astro:page-load', refreshPageBindings);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointermove', onPointerCanvasMove);
-      window.removeEventListener('click', onCanvasClick);
-      window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('scroll', syncScrollState);
-      window.removeEventListener('resize', onViewportChange);
-      nightWarningConfirm?.removeEventListener('click', dismissNightWarning);
-      planetPanelClose?.removeEventListener('click', closePlanetPanel);
-      cameraControl.dispose();
-      keyboardMoveControl.dispose();
-      renderer.dispose();
-      mesh.geometry.dispose();
-      material.dispose();
-      textures.forEach((texture) => texture?.dispose());
-      glowTextures.forEach((texture) => texture.dispose());
-      if (renderer.domElement.parentElement === canvasMount) {
-        canvasMount.removeChild(renderer.domElement);
-      }
-      blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = false;
-      blackholeWindow.__BLACKHOLE_DEMO_REFRESH__ = undefined;
-      blackholeWindow.__BLACKHOLE_DEMO_HOST__ = null;
-    },
-    { once: true },
-  );
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    window.cancelAnimationFrame(state.rafId);
+    resizeObserver.disconnect();
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    document.removeEventListener('mousedown', selectionGuard, true);
+    document.removeEventListener('mouseup', clearSelectionGuard, true);
+    document.removeEventListener('astro:page-load', refreshPageBindings);
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointermove', onPointerCanvasMove);
+    window.removeEventListener('click', onCanvasClick);
+    window.removeEventListener('wheel', onWheel);
+    window.removeEventListener('scroll', syncScrollState);
+    window.removeEventListener('resize', onViewportChange);
+    nightWarningConfirm?.removeEventListener('click', dismissNightWarning);
+    planetPanelClose?.removeEventListener('click', closePlanetPanel);
+    cameraControl.dispose();
+    keyboardMoveControl.dispose();
+    renderer.dispose();
+    mesh.geometry.dispose();
+    material.dispose();
+    textures.forEach((texture) => texture?.dispose());
+    glowTextures.forEach((texture) => texture.dispose());
+    if (renderer.domElement.parentElement === canvasMount) {
+      canvasMount.removeChild(renderer.domElement);
+    }
+    blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = false;
+    blackholeWindow.__BLACKHOLE_DEMO_REFRESH__ = undefined;
+    blackholeWindow.__BLACKHOLE_DEMO_HOST__ = null;
+    blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ = null;
+    blackholeWindow.__BLACKHOLE_DISPOSE__ = undefined;
+  };
+
+  blackholeWindow.__BLACKHOLE_DISPOSE__ = dispose;
+
+  window.addEventListener('pagehide', dispose, { once: true });
 };
 
 if (document.readyState === 'loading') {

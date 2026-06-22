@@ -37,7 +37,7 @@
       },
       "orbit": {
         "is_show": true,
-        "distance_from_star": 1.18,
+        "distance_from_star": 4.5,
         "distance_unit": "AU",
         "distance_unit_comment": "只接受 AU (天文单位) 和 km (千米)",
         "period": 412,
@@ -49,6 +49,54 @@
         "value": 6.84,
         "unit": "kg",
         "scientific_notation": "10**24"
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#6ea8ff",
+          "shadow_color": "#112347",
+          "terrain_scale": 7.2,
+          "terrain_contrast": 0.44
+        },
+        "water": {
+          "is_show": true,
+          "color": "#8cc4ff",
+          "coverage": 0.46,
+          "gloss": 0.82
+        },
+        "land": {
+          "color": "#4f78be",
+          "secondary_color": "#b1d3ff",
+          "coverage": 0.58
+        },
+        "clouds": {
+          "is_show": true,
+          "color": "#f2f7ff",
+          "opacity": 0.28,
+          "coverage": 0.49,
+          "speed": 0.2
+        },
+        "atmosphere_visual": {
+          "is_show": true,
+          "color": "#a8d2ff",
+          "intensity": 0.6,
+          "rim_power": 2.9
+        },
+        "poles": {
+          "is_show": true,
+          "color": "#dde9ff",
+          "size": 0.18
+        },
+        "equator": {
+          "is_show": true,
+          "color": "#9fc7ff",
+          "width": 0.08,
+          "intensity": 0.34
+        }
+      },
+      "physics": {
+        "rotation_speed": 17.2,
+        "rotation_unit": "hours",
+        "axial_tilt": 21.4
       }
     }
   }

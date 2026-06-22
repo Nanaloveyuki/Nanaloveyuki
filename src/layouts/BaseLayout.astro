@@ -96,6 +96,46 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
               </div>
 
               <div class="blackhole-planet-panel-preview" data-blackhole-planet-panel-preview>
+                <div class="blackhole-planet-panel-preview-orbit" aria-hidden="true">
+                  <div
+                    class="blackhole-planet-panel-preview-atmosphere"
+                    data-blackhole-planet-panel-preview-atmosphere
+                  >
+                    <div
+                      class="blackhole-planet-panel-preview-clouds"
+                      data-blackhole-planet-panel-preview-clouds
+                    />
+                    <div
+                      class="blackhole-planet-panel-preview-planet"
+                      data-blackhole-planet-panel-preview-planet
+                    >
+                      <div
+                        class="blackhole-planet-panel-preview-water"
+                        data-blackhole-planet-panel-preview-water
+                      />
+                      <div
+                        class="blackhole-planet-panel-preview-land"
+                        data-blackhole-planet-panel-preview-land
+                      />
+                      <div
+                        class="blackhole-planet-panel-preview-equator"
+                        data-blackhole-planet-panel-preview-equator
+                      />
+                      <div
+                        class="blackhole-planet-panel-preview-pole is-north"
+                        data-blackhole-planet-panel-preview-pole-north
+                      />
+                      <div
+                        class="blackhole-planet-panel-preview-pole is-south"
+                        data-blackhole-planet-panel-preview-pole-south
+                      />
+                    </div>
+                    <div
+                      class="blackhole-planet-panel-preview-ring"
+                      data-blackhole-planet-panel-preview-ring
+                    />
+                  </div>
+                </div>
                 <p data-blackhole-planet-panel-preview-copy>Planet Overview</p>
               </div>
 
@@ -128,6 +168,30 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
                 <div>
                   <dt>质量</dt>
                   <dd data-blackhole-planet-panel-stat-weight />
+                </div>
+                <div>
+                  <dt>自转</dt>
+                  <dd data-blackhole-planet-panel-stat-rotation />
+                </div>
+                <div>
+                  <dt>自倾角</dt>
+                  <dd data-blackhole-planet-panel-stat-tilt />
+                </div>
+                <div>
+                  <dt>极地</dt>
+                  <dd data-blackhole-planet-panel-stat-poles />
+                </div>
+                <div>
+                  <dt>赤道</dt>
+                  <dd data-blackhole-planet-panel-stat-equator />
+                </div>
+                <div>
+                  <dt>云层</dt>
+                  <dd data-blackhole-planet-panel-stat-clouds />
+                </div>
+                <div>
+                  <dt>地表</dt>
+                  <dd data-blackhole-planet-panel-stat-surface />
                 </div>
               </dl>
 

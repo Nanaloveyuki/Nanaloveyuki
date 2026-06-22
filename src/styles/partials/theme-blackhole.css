@@ -300,6 +300,7 @@ body.theme-stars .site-nav a.is-active {
 }
 
 .blackhole-planet-panel-preview {
+  position: relative;
   margin-top: 0.9rem;
   min-height: 9rem;
   border-radius: 1rem;
@@ -314,7 +315,159 @@ body.theme-stars .site-nav a.is-active {
   overflow: hidden;
 }
 
+.blackhole-planet-panel-preview-orbit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.blackhole-planet-panel-preview-atmosphere {
+  position: relative;
+  width: 7rem;
+  height: 7rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: 0 0 30px rgba(135, 188, 255, 0.18);
+}
+
+.blackhole-planet-panel-preview-planet {
+  position: relative;
+  width: 5.4rem;
+  height: 5.4rem;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset -0.75rem -0.85rem 1.6rem rgba(8, 15, 30, 0.5),
+    inset 0.85rem 0.65rem 1.4rem rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.blackhole-planet-panel-preview-water,
+.blackhole-planet-panel-preview-land,
+.blackhole-planet-panel-preview-clouds,
+.blackhole-planet-panel-preview-equator,
+.blackhole-planet-panel-preview-pole,
+.blackhole-planet-panel-preview-ring {
+  position: absolute;
+}
+
+.blackhole-planet-panel-preview-water {
+  inset: 0;
+  border-radius: 50%;
+}
+
+.blackhole-planet-panel-preview-land {
+  inset: 8% 10% 14% 12%;
+  border-radius: 48% 52% 44% 56% / 44% 58% 42% 56%;
+  opacity: 0.92;
+  filter: saturate(1.05);
+  transform: rotate(-18deg);
+}
+
+.blackhole-planet-panel-preview-land::before,
+.blackhole-planet-panel-preview-land::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+}
+
+.blackhole-planet-panel-preview-land::before {
+  inset: 28% 36% 8% 6%;
+  transform: rotate(26deg);
+  background: inherit;
+  opacity: 0.92;
+}
+
+.blackhole-planet-panel-preview-land::after {
+  inset: 6% 8% 36% 42%;
+  transform: rotate(-22deg);
+  background: inherit;
+  opacity: 0.76;
+}
+
+.blackhole-planet-panel-preview-clouds {
+  inset: 14% 10%;
+  border-radius: 999px;
+  opacity: 0.3;
+  mix-blend-mode: screen;
+  filter: blur(1px);
+}
+
+.blackhole-planet-panel-preview-clouds::before,
+.blackhole-planet-panel-preview-clouds::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+}
+
+.blackhole-planet-panel-preview-clouds::before {
+  transform: translateY(1rem) rotate(8deg) scale(0.9);
+  opacity: 0.72;
+}
+
+.blackhole-planet-panel-preview-clouds::after {
+  transform: translateY(-0.85rem) rotate(-10deg) scale(0.84);
+  opacity: 0.54;
+}
+
+.blackhole-planet-panel-preview-equator {
+  left: 10%;
+  right: 10%;
+  top: 50%;
+  height: 0.5rem;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  opacity: 0.3;
+  mix-blend-mode: screen;
+}
+
+.blackhole-planet-panel-preview-pole {
+  left: 50%;
+  width: 2rem;
+  height: 1rem;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 38% 38%;
+  opacity: 0.86;
+  filter: blur(0.35px);
+}
+
+.blackhole-planet-panel-preview-pole.is-north {
+  top: 0.25rem;
+}
+
+.blackhole-planet-panel-preview-pole.is-south {
+  bottom: 0.25rem;
+  transform: translateX(-50%) rotate(180deg);
+}
+
+.blackhole-planet-panel-preview-ring {
+  left: 50%;
+  top: 50%;
+  width: 8rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-16deg);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.08);
+  opacity: 0.6;
+}
+
+.blackhole-planet-panel-preview-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0.18rem 0.5rem;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 .blackhole-planet-panel-preview p {
+  position: relative;
+  z-index: 1;
   margin: 0;
   color: rgba(248, 242, 235, 0.82);
   font-size: 0.78rem;
@@ -356,6 +509,7 @@ body.theme-stars .site-nav a.is-active {
   margin-top: 0.35rem;
   color: #f8f2eb;
   font-size: 0.92rem;
+  line-height: 1.55;
 }
 
 .blackhole-planet-panel-link {

@@ -49,6 +49,70 @@ export type FriendPlanetWeightProfile = {
   scientific_notation?: string;
 };
 
+export type FriendPlanetSurfaceAppearance = {
+  base_color?: string;
+  shadow_color?: string;
+  terrain_scale?: number;
+  terrain_contrast?: number;
+};
+
+export type FriendPlanetWaterAppearance = {
+  is_show?: boolean;
+  color?: string;
+  coverage?: number;
+  gloss?: number;
+};
+
+export type FriendPlanetLandAppearance = {
+  color?: string;
+  secondary_color?: string;
+  coverage?: number;
+};
+
+export type FriendPlanetCloudAppearance = {
+  is_show?: boolean;
+  color?: string;
+  opacity?: number;
+  coverage?: number;
+  speed?: number;
+};
+
+export type FriendPlanetAtmosphereVisualProfile = {
+  is_show?: boolean;
+  color?: string;
+  intensity?: number;
+  rim_power?: number;
+};
+
+export type FriendPlanetPolarAppearance = {
+  is_show?: boolean;
+  color?: string;
+  size?: number;
+};
+
+export type FriendPlanetEquatorAppearance = {
+  is_show?: boolean;
+  color?: string;
+  width?: number;
+  intensity?: number;
+};
+
+export type FriendPlanetAppearanceProfile = {
+  surface?: FriendPlanetSurfaceAppearance;
+  water?: FriendPlanetWaterAppearance;
+  land?: FriendPlanetLandAppearance;
+  clouds?: FriendPlanetCloudAppearance;
+  atmosphere_visual?: FriendPlanetAtmosphereVisualProfile;
+  poles?: FriendPlanetPolarAppearance;
+  equator?: FriendPlanetEquatorAppearance;
+};
+
+export type FriendPlanetPhysicsProfile = {
+  rotation_speed?: number;
+  rotation_unit?: 'hours' | 'days' | 'seconds';
+  axial_tilt?: number;
+};
+
 export type FriendPlanetProfile = {
   width?: number;
   height?: number;
@@ -60,6 +124,8 @@ export type FriendPlanetProfile = {
   atmosphere?: FriendPlanetAtmosphereProfile;
   orbit?: FriendPlanetOrbitProfile;
   weight?: FriendPlanetWeightProfile;
+  appearance?: FriendPlanetAppearanceProfile;
+  physics?: FriendPlanetPhysicsProfile;
 };
 
 export type FriendPlanet = {
@@ -109,6 +175,8 @@ export type ControlBasis = {
 export type PlanetEntry = {
   data: FriendPlanet;
   pivot: THREE.Group;
+  anchor: THREE.Group;
+  tiltGroup: THREE.Group;
   mesh: THREE.Mesh;
   shell: THREE.Mesh;
   glow: THREE.Sprite;
@@ -120,6 +188,8 @@ export type PlanetEntry = {
   radius: number;
   orbitRadius: number;
   orbitSpeed: number;
+  rotationSpeed: number;
+  axialTilt: number;
   hueShift: number;
   phase: number;
 };

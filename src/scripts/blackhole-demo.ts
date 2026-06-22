@@ -638,6 +638,33 @@ const bootBlackholeDemo = () => {
   const planetPanelPreview = planetPanel?.querySelector<HTMLElement>(
     '[data-blackhole-planet-panel-preview]',
   );
+  const planetPanelPreviewAtmosphere = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-atmosphere]',
+  );
+  const planetPanelPreviewPlanet = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-planet]',
+  );
+  const planetPanelPreviewWater = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-water]',
+  );
+  const planetPanelPreviewLand = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-land]',
+  );
+  const planetPanelPreviewClouds = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-clouds]',
+  );
+  const planetPanelPreviewEquator = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-equator]',
+  );
+  const planetPanelPreviewPoleNorth = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-pole-north]',
+  );
+  const planetPanelPreviewPoleSouth = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-pole-south]',
+  );
+  const planetPanelPreviewRing = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-preview-ring]',
+  );
   const planetPanelPreviewCopy = planetPanel?.querySelector<HTMLElement>(
     '[data-blackhole-planet-panel-preview-copy]',
   );
@@ -661,6 +688,24 @@ const bootBlackholeDemo = () => {
   );
   const planetPanelStatWeight = planetPanel?.querySelector<HTMLElement>(
     '[data-blackhole-planet-panel-stat-weight]',
+  );
+  const planetPanelStatRotation = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-rotation]',
+  );
+  const planetPanelStatTilt = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-tilt]',
+  );
+  const planetPanelStatPoles = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-poles]',
+  );
+  const planetPanelStatEquator = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-equator]',
+  );
+  const planetPanelStatClouds = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-clouds]',
+  );
+  const planetPanelStatSurface = planetPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-planet-panel-stat-surface]',
   );
 
   if (!canvasMount) {
@@ -803,8 +848,8 @@ const bootBlackholeDemo = () => {
     return fallbackRadius;
   };
 
-  const getPlanetColor = (value: string | undefined, fallback: string) => {
-    const color = new THREE.Color(fallback);
+  const getPlanetColor = (value: string | undefined, fallback: string | THREE.Color) => {
+    const color = fallback instanceof THREE.Color ? fallback.clone() : new THREE.Color(fallback);
 
     if (!value) {
       return color;
@@ -838,6 +883,152 @@ const bootBlackholeDemo = () => {
     };
   };
 
+  const colorToRgba = (color: THREE.Color, alpha: number) => {
+    const normalizedAlpha = clamp(alpha, 0, 1);
+    const r = Math.round(clamp(color.r, 0, 1) * 255);
+    const g = Math.round(clamp(color.g, 0, 1) * 255);
+    const b = Math.round(clamp(color.b, 0, 1) * 255);
+
+    return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha.toFixed(3)})`;
+  };
+
+  const formatPercent = (value: number) => `${Math.round(clamp(value, 0, 1) * 100)}%`;
+
+  const getPlanetAppearanceProfile = (friend: FriendPlanet) => {
+    const defaults: Record<
+      FriendPlanetType,
+      {
+        surfaceBase: string;
+        surfaceShadow: string;
+        water: string;
+        land: string;
+        landSecondary: string;
+        clouds: string;
+        atmosphere: string;
+        poles: string;
+        equator: string;
+        waterVisible: boolean;
+      }
+    > = {
+      cold: {
+        surfaceBase: '#d8ecff',
+        surfaceShadow: '#173252',
+        water: '#91cbff',
+        land: '#b8d7f2',
+        landSecondary: '#eef8ff',
+        clouds: '#f6fbff',
+        atmosphere: '#d7efff',
+        poles: '#ffffff',
+        equator: '#d6ebff',
+        waterVisible: true,
+      },
+      cool: {
+        surfaceBase: '#cd8c5d',
+        surfaceShadow: '#30160f',
+        water: '#6ca0c9',
+        land: '#93573c',
+        landSecondary: '#e0b182',
+        clouds: '#fff1e1',
+        atmosphere: '#ffd4a6',
+        poles: '#fff4e8',
+        equator: '#f0bb8a',
+        waterVisible: false,
+      },
+      warm: {
+        surfaceBase: '#5f8fe5',
+        surfaceShadow: '#102040',
+        water: '#86bcff',
+        land: '#446cab',
+        landSecondary: '#a8c6ff',
+        clouds: '#f3f7ff',
+        atmosphere: '#a9d0ff',
+        poles: '#dde9ff',
+        equator: '#9dc1ff',
+        waterVisible: true,
+      },
+      hot: {
+        surfaceBase: '#ff9158',
+        surfaceShadow: '#280904',
+        water: '#ac6550',
+        land: '#bf3f21',
+        landSecondary: '#ffd06a',
+        clouds: '#ffe7cf',
+        atmosphere: '#ffb172',
+        poles: '#ffe6c7',
+        equator: '#ffb26b',
+        waterVisible: false,
+      },
+    };
+
+    const palette = defaults[friend.type];
+    const profile = friend.planet;
+    const appearance = profile?.appearance;
+    const surface = appearance?.surface;
+    const water = appearance?.water;
+    const land = appearance?.land;
+    const clouds = appearance?.clouds;
+    const atmosphereVisual = appearance?.atmosphere_visual;
+    const poles = appearance?.poles;
+    const equator = appearance?.equator;
+
+    const baseColor = getPlanetColor(surface?.base_color ?? profile?.color, palette.surfaceBase);
+    const shadowColor = getPlanetColor(
+      surface?.shadow_color ?? profile?.background,
+      palette.surfaceShadow,
+    );
+    const waterVisible = water?.is_show ?? palette.waterVisible;
+    const waterColor = getPlanetColor(
+      water?.color,
+      baseColor.clone().lerp(new THREE.Color(palette.water), 0.64),
+    );
+    const landColor = getPlanetColor(
+      land?.color,
+      baseColor.clone().lerp(new THREE.Color(palette.land), 0.56),
+    );
+    const landSecondaryColor = getPlanetColor(
+      land?.secondary_color,
+      landColor.clone().lerp(new THREE.Color(palette.landSecondary), 0.42),
+    );
+    const cloudVisible = clouds?.is_show ?? profile?.atmosphere?.is_show ?? waterVisible;
+    const cloudColor = getPlanetColor(clouds?.color, palette.clouds);
+    const atmosphereVisible = atmosphereVisual?.is_show ?? profile?.atmosphere?.is_show ?? false;
+    const atmosphereColor = getPlanetColor(atmosphereVisual?.color, palette.atmosphere);
+    const poleVisible = poles?.is_show ?? friend.type !== 'hot';
+    const poleColor = getPlanetColor(poles?.color, palette.poles);
+    const equatorVisible = equator?.is_show ?? true;
+    const equatorColor = getPlanetColor(equator?.color, palette.equator);
+
+    return {
+      baseColor,
+      shadowColor,
+      waterVisible,
+      waterColor,
+      waterCoverage: clamp(water?.coverage ?? 0.44, 0.05, 0.92),
+      waterGloss: clamp(water?.gloss ?? 0.72, 0, 1),
+      landColor,
+      landSecondaryColor,
+      landCoverage: clamp(land?.coverage ?? 0.58, 0.08, 0.96),
+      terrainScale: clamp(surface?.terrain_scale ?? 6.4, 2, 18),
+      terrainContrast: clamp(surface?.terrain_contrast ?? 0.42, 0.05, 0.95),
+      cloudVisible,
+      cloudColor,
+      cloudOpacity: clamp(clouds?.opacity ?? 0.28, 0, 0.9),
+      cloudCoverage: clamp(clouds?.coverage ?? 0.46, 0.08, 0.96),
+      cloudSpeed: clamp(clouds?.speed ?? 0.18, 0, 1.5),
+      atmosphereVisible,
+      atmosphereColor,
+      atmosphereIntensity: clamp(atmosphereVisual?.intensity ?? 0.56, 0, 1),
+      atmosphereRimPower: clamp(atmosphereVisual?.rim_power ?? 2.8, 1.2, 6),
+      poleVisible,
+      poleColor,
+      poleSize: clamp(poles?.size ?? 0.16, 0.03, 0.42),
+      equatorVisible,
+      equatorColor,
+      equatorWidth: clamp(equator?.width ?? 0.08, 0.02, 0.24),
+      equatorIntensity: clamp(equator?.intensity ?? 0.32, 0, 1),
+    };
+  };
+
   const getPlanetOrbitRadius = (friend: FriendPlanet, fallbackOrbitRadius: number) => {
     const distance = friend.planet?.orbit?.distance_from_star;
     const unit = friend.planet?.orbit?.distance_unit ?? 'AU';
@@ -863,6 +1054,30 @@ const bootBlackholeDemo = () => {
     return clamp(0.012 * Math.pow(365 / normalizedDays, 0.34), 0.0032, 0.0135);
   };
 
+  const getPlanetRotationSpeed = (friend: FriendPlanet, fallbackRotationSpeed: number) => {
+    const value = friend.planet?.physics?.rotation_speed;
+    const unit = friend.planet?.physics?.rotation_unit ?? 'hours';
+
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      return fallbackRotationSpeed;
+    }
+
+    const periodSeconds =
+      unit === 'days' ? value * 86400 : unit === 'seconds' ? value : value * 3600;
+
+    return clamp(((Math.PI * 2) / periodSeconds) * 1200, 0.02, 0.45);
+  };
+
+  const getPlanetAxialTilt = (friend: FriendPlanet) => {
+    const axialTilt = friend.planet?.physics?.axial_tilt;
+
+    if (typeof axialTilt !== 'number' || !Number.isFinite(axialTilt)) {
+      return 0;
+    }
+
+    return THREE.MathUtils.degToRad(clamp(axialTilt, -65, 65));
+  };
+
   const getPlanetShellAppearance = (friend: FriendPlanet, type: FriendPlanetType) => {
     const defaultShellColors: Record<FriendPlanetType, string> = {
       cold: '#e6f4ff',
@@ -871,18 +1086,23 @@ const bootBlackholeDemo = () => {
       hot: '#ffd4aa',
     };
 
+    const appearance = getPlanetAppearanceProfile(friend);
     const surfaceColor = getPlanetColor(friend.planet?.color, defaultShellColors[type]);
-    const atmosphereVisible = friend.planet?.atmosphere?.is_show ?? false;
+    const atmosphereVisible = appearance.atmosphereVisible;
     const pressure = friend.planet?.atmosphere?.pressure ?? 0;
-    const shellOpacity = atmosphereVisible ? clamp(0.08 + pressure * 0.035, 0.1, 0.22) : 0.05;
+    const shellOpacity = atmosphereVisible
+      ? clamp(0.08 + pressure * 0.025 + appearance.atmosphereIntensity * 0.12, 0.1, 0.28)
+      : 0.05;
     const glowOpacity = clamp(
-      0.16 + (atmosphereVisible ? 0.08 : 0) + (type === 'hot' ? 0.06 : 0),
+      0.15 +
+        (atmosphereVisible ? appearance.atmosphereIntensity * 0.16 : 0) +
+        (type === 'hot' ? 0.06 : 0),
       0.16,
-      0.34,
+      0.38,
     );
 
     return {
-      color: surfaceColor.clone().lerp(new THREE.Color('#ffffff'), atmosphereVisible ? 0.48 : 0.24),
+      color: appearance.atmosphereColor.clone().lerp(surfaceColor, atmosphereVisible ? 0.36 : 0.62),
       shellOpacity,
       glowOpacity,
     };
@@ -953,11 +1173,135 @@ const bootBlackholeDemo = () => {
     return 'Unknown';
   };
 
-  const getPlanetPreviewBackground = (friend: FriendPlanet) => {
-    const background = friend.planet?.background ?? '#07111d';
-    const color = friend.planet?.color ?? '#4f86d9';
+  const formatPlanetRotation = (profile?: FriendPlanetProfile) => {
+    const rotationSpeed = profile?.physics?.rotation_speed;
+    const unit = profile?.physics?.rotation_unit ?? 'hours';
 
-    return `radial-gradient(circle at 74% 26%, rgba(255,255,255,0.26), transparent 24%), radial-gradient(circle at 36% 44%, rgba(255,255,255,0.12), transparent 18%), linear-gradient(140deg, ${color}, ${background})`;
+    if (typeof rotationSpeed !== 'number') {
+      return 'Unknown';
+    }
+
+    return `${rotationSpeed} ${unit} / rotation`;
+  };
+
+  const formatPlanetTilt = (profile?: FriendPlanetProfile) => {
+    const tilt = profile?.physics?.axial_tilt;
+
+    if (typeof tilt !== 'number') {
+      return '0°';
+    }
+
+    return `${tilt}°`;
+  };
+
+  const formatPlanetPoles = (friend: FriendPlanet) => {
+    const appearance = getPlanetAppearanceProfile(friend);
+
+    if (!appearance.poleVisible) {
+      return 'Hidden';
+    }
+
+    return `${formatPercent(appearance.poleSize)} cap band`;
+  };
+
+  const formatPlanetEquator = (friend: FriendPlanet) => {
+    const appearance = getPlanetAppearanceProfile(friend);
+
+    if (!appearance.equatorVisible) {
+      return 'None';
+    }
+
+    return `${formatPercent(appearance.equatorWidth)} width / ${formatPercent(appearance.equatorIntensity)} glow`;
+  };
+
+  const formatPlanetClouds = (friend: FriendPlanet) => {
+    const appearance = getPlanetAppearanceProfile(friend);
+
+    if (!appearance.cloudVisible || appearance.cloudOpacity <= 0.01) {
+      return 'Clear';
+    }
+
+    return `${formatPercent(appearance.cloudCoverage)} cover / ${formatPercent(appearance.cloudOpacity)} opacity`;
+  };
+
+  const formatPlanetSurface = (friend: FriendPlanet) => {
+    const appearance = getPlanetAppearanceProfile(friend);
+    const waterSummary = appearance.waterVisible
+      ? `water ${formatPercent(appearance.waterCoverage)}`
+      : 'dry crust';
+
+    return `${waterSummary} / land ${formatPercent(appearance.landCoverage)}`;
+  };
+
+  const getPlanetPreviewBackground = (friend: FriendPlanet) => {
+    const appearance = getPlanetAppearanceProfile(friend);
+    const background = colorToRgba(appearance.shadowColor, 0.96);
+    const color = colorToRgba(appearance.baseColor, 0.92);
+    const atmosphereGlow = colorToRgba(
+      appearance.atmosphereColor,
+      0.22 + appearance.atmosphereIntensity * 0.18,
+    );
+
+    return `radial-gradient(circle at 72% 28%, rgba(255,255,255,0.26), transparent 24%), radial-gradient(circle at 44% 38%, ${atmosphereGlow}, transparent 26%), linear-gradient(145deg, ${color}, ${background})`;
+  };
+
+  const applyPlanetPreviewAppearance = (friend: FriendPlanet) => {
+    const appearance = getPlanetAppearanceProfile(friend);
+    const axialTilt = friend.planet?.physics?.axial_tilt ?? 0;
+
+    if (planetPanelPreviewAtmosphere) {
+      planetPanelPreviewAtmosphere.style.background = `radial-gradient(circle at 50% 50%, ${colorToRgba(appearance.atmosphereColor, 0.08 + appearance.atmosphereIntensity * 0.08)}, transparent 58%), radial-gradient(circle at 50% 50%, ${colorToRgba(appearance.atmosphereColor, 0.18 + appearance.atmosphereIntensity * 0.22)}, transparent 72%)`;
+      planetPanelPreviewAtmosphere.style.boxShadow = `0 0 28px ${colorToRgba(appearance.atmosphereColor, 0.12 + appearance.atmosphereIntensity * 0.16)}`;
+      planetPanelPreviewAtmosphere.style.transform = `rotate(${axialTilt * 0.2}deg)`;
+    }
+
+    if (planetPanelPreviewPlanet) {
+      planetPanelPreviewPlanet.style.background = `radial-gradient(circle at 34% 24%, ${colorToRgba(appearance.landSecondaryColor, 0.38)}, transparent 26%), linear-gradient(160deg, ${colorToRgba(appearance.baseColor, 1)}, ${colorToRgba(appearance.shadowColor, 1)})`;
+      planetPanelPreviewPlanet.style.transform = `rotate(${axialTilt * 0.3}deg)`;
+    }
+
+    if (planetPanelPreviewWater) {
+      planetPanelPreviewWater.style.background = `radial-gradient(circle at 30% 26%, ${colorToRgba(appearance.waterColor.clone().lerp(new THREE.Color('#ffffff'), appearance.waterGloss * 0.22), 0.84)}, transparent 28%), linear-gradient(150deg, ${colorToRgba(appearance.waterColor, appearance.waterVisible ? 0.94 : 0.2)}, ${colorToRgba(appearance.shadowColor, 0.82)})`;
+      planetPanelPreviewWater.style.opacity = appearance.waterVisible ? '1' : '0.22';
+    }
+
+    if (planetPanelPreviewLand) {
+      planetPanelPreviewLand.style.background = `radial-gradient(circle at 24% 36%, ${colorToRgba(appearance.landSecondaryColor, 0.95)}, transparent 38%), radial-gradient(circle at 72% 68%, ${colorToRgba(appearance.landColor, 0.92)}, transparent 34%), linear-gradient(135deg, ${colorToRgba(appearance.landColor, 0.98)}, ${colorToRgba(appearance.landSecondaryColor, 0.88)})`;
+      planetPanelPreviewLand.style.opacity = appearance.landCoverage.toFixed(2);
+    }
+
+    if (planetPanelPreviewClouds) {
+      planetPanelPreviewClouds.style.background = `radial-gradient(circle at 22% 44%, ${colorToRgba(appearance.cloudColor, 0.92)}, transparent 20%), radial-gradient(circle at 54% 28%, ${colorToRgba(appearance.cloudColor, 0.86)}, transparent 18%), radial-gradient(circle at 76% 64%, ${colorToRgba(appearance.cloudColor, 0.74)}, transparent 17%)`;
+      planetPanelPreviewClouds.style.opacity = appearance.cloudVisible
+        ? appearance.cloudOpacity.toFixed(2)
+        : '0';
+      planetPanelPreviewClouds.style.display = appearance.cloudVisible ? '' : 'none';
+    }
+
+    if (planetPanelPreviewEquator) {
+      planetPanelPreviewEquator.style.background = `linear-gradient(90deg, transparent, ${colorToRgba(appearance.equatorColor, 0.28 + appearance.equatorIntensity * 0.42)}, transparent)`;
+      planetPanelPreviewEquator.style.height = `${Math.max(6, appearance.equatorWidth * 28)}px`;
+      planetPanelPreviewEquator.style.display = appearance.equatorVisible ? '' : 'none';
+    }
+
+    if (planetPanelPreviewPoleNorth) {
+      planetPanelPreviewPoleNorth.style.background = `radial-gradient(circle at 50% 24%, ${colorToRgba(appearance.poleColor, 0.96)}, ${colorToRgba(appearance.poleColor.clone().lerp(appearance.shadowColor, 0.26), 0.52)})`;
+      planetPanelPreviewPoleNorth.style.width = `${Math.max(18, appearance.poleSize * 84)}px`;
+      planetPanelPreviewPoleNorth.style.display = appearance.poleVisible ? '' : 'none';
+    }
+
+    if (planetPanelPreviewPoleSouth) {
+      planetPanelPreviewPoleSouth.style.background = `radial-gradient(circle at 50% 24%, ${colorToRgba(appearance.poleColor, 0.96)}, ${colorToRgba(appearance.poleColor.clone().lerp(appearance.shadowColor, 0.26), 0.52)})`;
+      planetPanelPreviewPoleSouth.style.width = `${Math.max(18, appearance.poleSize * 84)}px`;
+      planetPanelPreviewPoleSouth.style.display = appearance.poleVisible ? '' : 'none';
+    }
+
+    if (planetPanelPreviewRing) {
+      const ringColor = getPlanetColor(friend.planet?.ring?.color, '#d7d1c4');
+      planetPanelPreviewRing.style.borderColor = colorToRgba(ringColor, 0.46);
+      planetPanelPreviewRing.style.boxShadow = `0 0 16px ${colorToRgba(ringColor, 0.12)}`;
+      planetPanelPreviewRing.style.display = friend.planet?.ring?.is_show ? '' : 'none';
+    }
   };
 
   const lerpAngle = (current: number, target: number, alpha: number) => {
@@ -1089,9 +1433,28 @@ const bootBlackholeDemo = () => {
     if (planetPanelStatWeight) {
       planetPanelStatWeight.textContent = formatPlanetWeight(friend.planet);
     }
+    if (planetPanelStatRotation) {
+      planetPanelStatRotation.textContent = formatPlanetRotation(friend.planet);
+    }
+    if (planetPanelStatTilt) {
+      planetPanelStatTilt.textContent = formatPlanetTilt(friend.planet);
+    }
+    if (planetPanelStatPoles) {
+      planetPanelStatPoles.textContent = formatPlanetPoles(friend);
+    }
+    if (planetPanelStatEquator) {
+      planetPanelStatEquator.textContent = formatPlanetEquator(friend);
+    }
+    if (planetPanelStatClouds) {
+      planetPanelStatClouds.textContent = formatPlanetClouds(friend);
+    }
+    if (planetPanelStatSurface) {
+      planetPanelStatSurface.textContent = formatPlanetSurface(friend);
+    }
     if (planetPanelPreview) {
       planetPanelPreview.style.background = getPlanetPreviewBackground(friend);
     }
+    applyPlanetPreviewAppearance(friend);
     if (planetPanelPreviewCopy) {
       planetPanelPreviewCopy.textContent = `${friend.name} overview`;
     }
@@ -1158,9 +1521,10 @@ const bootBlackholeDemo = () => {
     };
 
     const palette = palettes[type];
-    const surfaceColor = getPlanetColor(friend.planet?.color, palette.dayA);
-    const shadowColor = getPlanetColor(friend.planet?.background, palette.night);
-    const atmosphereVisible = friend.planet?.atmosphere?.is_show ?? false;
+    const appearance = getPlanetAppearanceProfile(friend);
+    const surfaceColor = appearance.baseColor;
+    const shadowColor = appearance.shadowColor;
+    const atmosphereVisible = appearance.atmosphereVisible;
     const temperatureBand = getPlanetTemperatureBand(friend.planet);
     const heatMix = temperatureBand
       ? clamp((temperatureBand.averageKelvin - 240) / 1200, 0, 1)
@@ -1174,16 +1538,23 @@ const bootBlackholeDemo = () => {
       0.005,
       0.22,
     );
-    const dayColorA = surfaceColor.clone().lerp(new THREE.Color('#ffffff'), 0.22);
-    const dayColorB = surfaceColor.clone().lerp(shadowColor, 0.4);
+    const dayColorA = appearance.waterVisible
+      ? appearance.waterColor
+          .clone()
+          .lerp(new THREE.Color('#ffffff'), 0.18 + appearance.waterGloss * 0.12)
+      : surfaceColor.clone().lerp(new THREE.Color('#ffffff'), 0.18);
+    const dayColorB = appearance.landColor.clone().lerp(shadowColor, 0.22);
     const nightColor = shadowColor.clone().multiplyScalar(0.96);
-    const rimColor = surfaceColor
+    const rimColor = appearance.atmosphereColor
       .clone()
-      .lerp(new THREE.Color('#ffffff'), atmosphereVisible ? 0.62 : 0.38);
-    const detailColorA = surfaceColor
+      .lerp(
+        new THREE.Color('#ffffff'),
+        atmosphereVisible ? 0.32 + appearance.atmosphereIntensity * 0.3 : 0.14,
+      );
+    const detailColorA = appearance.landSecondaryColor
       .clone()
-      .lerp(new THREE.Color('#fff4d6'), 0.18 + heatMix * 0.1);
-    const detailColorB = shadowColor.clone().lerp(surfaceColor, 0.22);
+      .lerp(new THREE.Color('#fff4d6'), 0.12 + heatMix * 0.1);
+    const detailColorB = shadowColor.clone().lerp(appearance.landColor, 0.26);
     const emissionColor = getPlanetColor(friend.planet?.ring?.color, palette.emission).lerp(
       surfaceColor,
       0.34,
@@ -1202,6 +1573,30 @@ const bootBlackholeDemo = () => {
         detailColorB: { value: detailColorB },
         emissionColor: { value: emissionColor },
         emissionStrength: { value: emissionStrength },
+        waterColor: { value: appearance.waterColor },
+        landColor: { value: appearance.landColor },
+        landSecondaryColor: { value: appearance.landSecondaryColor },
+        cloudColor: { value: appearance.cloudColor },
+        atmosphereColor: { value: appearance.atmosphereColor },
+        poleColor: { value: appearance.poleColor },
+        equatorColor: { value: appearance.equatorColor },
+        terrainScale: { value: appearance.terrainScale },
+        terrainContrast: { value: appearance.terrainContrast },
+        waterCoverage: { value: appearance.waterCoverage },
+        waterGloss: { value: appearance.waterGloss },
+        waterVisible: { value: appearance.waterVisible ? 1 : 0 },
+        landCoverage: { value: appearance.landCoverage },
+        cloudCoverage: { value: appearance.cloudCoverage },
+        cloudOpacity: { value: appearance.cloudOpacity },
+        cloudSpeed: { value: appearance.cloudSpeed },
+        cloudVisible: { value: appearance.cloudVisible ? 1 : 0 },
+        atmosphereIntensity: { value: appearance.atmosphereIntensity },
+        atmosphereRimPower: { value: appearance.atmosphereRimPower },
+        poleSize: { value: appearance.poleSize },
+        poleVisible: { value: appearance.poleVisible ? 1 : 0 },
+        equatorWidth: { value: appearance.equatorWidth },
+        equatorIntensity: { value: appearance.equatorIntensity },
+        equatorVisible: { value: appearance.equatorVisible ? 1 : 0 },
       },
       vertexShader: `
         varying vec3 vWorldNormal;
@@ -1231,6 +1626,30 @@ const bootBlackholeDemo = () => {
         uniform vec3 detailColorB;
         uniform vec3 emissionColor;
         uniform float emissionStrength;
+        uniform vec3 waterColor;
+        uniform vec3 landColor;
+        uniform vec3 landSecondaryColor;
+        uniform vec3 cloudColor;
+        uniform vec3 atmosphereColor;
+        uniform vec3 poleColor;
+        uniform vec3 equatorColor;
+        uniform float terrainScale;
+        uniform float terrainContrast;
+        uniform float waterCoverage;
+        uniform float waterGloss;
+        uniform float waterVisible;
+        uniform float landCoverage;
+        uniform float cloudCoverage;
+        uniform float cloudOpacity;
+        uniform float cloudSpeed;
+        uniform float cloudVisible;
+        uniform float atmosphereIntensity;
+        uniform float atmosphereRimPower;
+        uniform float poleSize;
+        uniform float poleVisible;
+        uniform float equatorWidth;
+        uniform float equatorIntensity;
+        uniform float equatorVisible;
 
         float hash(vec2 point) {
           return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
@@ -1248,6 +1667,19 @@ const bootBlackholeDemo = () => {
           );
         }
 
+        float fbm(vec2 point) {
+          float value = 0.0;
+          float amplitude = 0.5;
+
+          for (int i = 0; i < 5; i += 1) {
+            value += noise(point) * amplitude;
+            point = point * 2.03 + vec2(17.0, 9.0);
+            amplitude *= 0.52;
+          }
+
+          return value;
+        }
+
         void main() {
           vec3 normal = normalize(vWorldNormal);
           vec3 lightDir = normalize(lightDirection);
@@ -1256,20 +1688,36 @@ const bootBlackholeDemo = () => {
           float wrappedLight = smoothstep(-0.18, 0.92, dot(normal, lightDir));
           float ambientFloor = 0.18;
           float litMix = ambientFloor + wrappedLight * (1.0 - ambientFloor);
-          float continentNoise = noise(vUv * 6.0 + vec2(time * 0.004, 0.0));
-          float detailNoise = noise(vUv * 16.0 + vec2(0.0, time * 0.003));
+          vec2 terrainUv = vec2(vUv.x * terrainScale, vUv.y * terrainScale * 1.24);
+          float continentNoise = fbm(terrainUv + vec2(time * 0.003, 0.0));
+          float detailNoise = fbm(vUv * (terrainScale * 2.7) + vec2(0.0, time * 0.002));
+          float cloudNoise = fbm(vUv * (terrainScale * 1.45) + vec2(time * cloudSpeed * 0.08, time * cloudSpeed * 0.03));
           float bandNoise = sin(vUv.y * 18.0 + time * 0.3) * 0.5 + 0.5;
           float craterMask = smoothstep(0.62, 0.88, noise(vUv * 28.0));
-          vec3 baseDay = mix(dayColorA, dayColorB, continentNoise);
+          float waterMask = waterVisible * (1.0 - smoothstep(waterCoverage - 0.15, waterCoverage + terrainContrast * 0.25, continentNoise));
+          float landMask = smoothstep(landCoverage - terrainContrast * 0.22, landCoverage + 0.08, continentNoise + detailNoise * 0.18);
+          float poleMask = poleVisible * max(
+            smoothstep(1.0 - poleSize * 1.35, 1.0 - poleSize * 0.22, abs(vUv.y - 0.5) * 2.0),
+            0.0
+          );
+          float equatorMask = equatorVisible * (1.0 - smoothstep(equatorWidth, equatorWidth + 0.12, abs(vUv.y - 0.5)));
+          float cloudMask = cloudVisible * smoothstep(cloudCoverage - 0.22, cloudCoverage + 0.12, cloudNoise) * cloudOpacity;
+          vec3 oceanColor = mix(dayColorA, waterColor, 0.74);
+          vec3 landBase = mix(landColor, landSecondaryColor, detailNoise);
+          vec3 baseDay = mix(oceanColor, landBase, max(landMask, 1.0 - waterMask));
           vec3 detailColor = mix(detailColorA, detailColorB, detailNoise);
-          vec3 dayColor = mix(baseDay, detailColor, 0.32);
-          dayColor = mix(dayColor, detailColorA, bandNoise * emissionStrength * 0.4);
-          dayColor = mix(dayColor, detailColorB, craterMask * 0.24);
+          vec3 dayColor = mix(baseDay, detailColor, 0.24 + terrainContrast * 0.26);
+          dayColor = mix(dayColor, landSecondaryColor, bandNoise * equatorIntensity * 0.1);
+          dayColor = mix(dayColor, detailColorB, craterMask * 0.18);
+          dayColor = mix(dayColor, poleColor, poleMask * 0.78);
+          dayColor = mix(dayColor, equatorColor, equatorMask * equatorIntensity * 0.46);
+          dayColor = mix(dayColor, cloudColor, cloudMask * 0.68);
           vec3 litColor = mix(nightColor, dayColor, litMix);
-          float silhouette = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.1);
+          float silhouette = pow(1.0 - max(dot(normal, viewDir), 0.0), atmosphereRimPower);
           float terminator = pow(1.0 - wrappedLight, 1.8) * diffuse;
+          float specular = pow(max(dot(reflect(-lightDir, normal), viewDir), 0.0), 18.0) * waterMask * waterGloss;
           vec3 emissionGlow = emissionColor * emissionStrength * (0.45 + bandNoise * 0.55) * (0.35 + diffuse * 0.65);
-          vec3 finalColor = litColor + rimColor * silhouette * 0.22 + rimColor * terminator * 0.08 + emissionGlow;
+          vec3 finalColor = litColor + atmosphereColor * silhouette * atmosphereIntensity * 0.34 + rimColor * terminator * 0.08 + emissionGlow + waterColor * specular * 0.34;
           gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
@@ -1332,6 +1780,8 @@ const bootBlackholeDemo = () => {
       const size = getPlanetRadius(friend, defaultSize);
       const orbitRadius = getPlanetOrbitRadius(friend, fallbackOrbitRadius);
       const orbitSpeed = getPlanetOrbitSpeed(friend, fallbackOrbitSpeed);
+      const rotationSpeed = getPlanetRotationSpeed(friend, 0.06 + ((hash >> 2) % 7) * 0.018);
+      const axialTilt = getPlanetAxialTilt(friend);
       const inclination = ((hash % 9) - 4) * 0.015;
       const initialAngle = THREE.MathUtils.lerp(Math.PI * 0.28, Math.PI * 0.56, (hash % 101) / 100);
       const hueShift = ((hash % 19) - 9) * 0.01;
@@ -1343,6 +1793,13 @@ const bootBlackholeDemo = () => {
       const orbitPivot = new THREE.Group();
       orbitPivot.rotation.z = inclination;
       orbitGroup.add(orbitPivot);
+
+      const anchor = new THREE.Group();
+      pivot.add(anchor);
+
+      const tiltGroup = new THREE.Group();
+      tiltGroup.rotation.z = axialTilt;
+      anchor.add(tiltGroup);
 
       const planetMaterial = createPlanetMaterial(friend);
       const planet = new THREE.Mesh(new THREE.SphereGeometry(size, 40, 40), planetMaterial);
@@ -1368,21 +1825,23 @@ const bootBlackholeDemo = () => {
       );
       glow.scale.setScalar(size * 4.6);
       const ring = createPlanetRing(friend, size);
-      planet.position.set(
+      const initialPosition = new THREE.Vector3(
         Math.cos(initialAngle) * orbitRadius,
         0,
         Math.sin(initialAngle) * orbitRadius,
       );
       planet.userData.friendPlanet = friend;
-      planet.userData.tidalLocked = true;
-      pivot.add(planet);
-      shell.position.copy(planet.position);
-      pivot.add(shell);
-      glow.position.copy(planet.position);
-      pivot.add(glow);
+      planet.userData.tidalLocked = false;
+      anchor.position.copy(initialPosition);
+      planet.position.set(0, 0, 0);
+      tiltGroup.add(planet);
+      shell.position.set(0, 0, 0);
+      anchor.add(shell);
+      glow.position.set(0, 0, 0);
+      anchor.add(glow);
       if (ring) {
-        ring.position.copy(planet.position);
-        pivot.add(ring);
+        ring.position.set(0, 0, 0);
+        tiltGroup.add(ring);
       }
 
       const orbitLine = createOrbitLine(orbitRadius);
@@ -1402,6 +1861,8 @@ const bootBlackholeDemo = () => {
       friendPlanets.push({
         data: friend,
         pivot,
+        anchor,
+        tiltGroup,
         mesh: planet,
         shell,
         glow,
@@ -1413,6 +1874,8 @@ const bootBlackholeDemo = () => {
         radius: size,
         orbitRadius,
         orbitSpeed,
+        rotationSpeed,
+        axialTilt,
         hueShift,
         phase: initialAngle + index * 0.18,
       });
@@ -2011,11 +2474,10 @@ const bootBlackholeDemo = () => {
         .normalize();
       planetMaterial.uniforms.lightDirection.value.copy(lightDirection);
       planetMaterial.uniforms.time.value = state.time + planetEntry.hueShift * 20;
-      planetEntry.mesh.lookAt(origin);
     });
   };
 
-  const updateFriendPlanetSystem = () => {
+  const updateFriendPlanetSystem = (delta: number) => {
     if (getSceneName() !== 'home') {
       orbitGroup.visible = false;
       return;
@@ -2026,15 +2488,16 @@ const bootBlackholeDemo = () => {
     friendPlanets.forEach((planetEntry) => {
       const angle = state.time * planetEntry.orbitSpeed + planetEntry.phase;
 
-      planetEntry.mesh.position.set(
+      planetEntry.anchor.position.set(
         Math.cos(angle) * planetEntry.orbitRadius,
         0,
         Math.sin(angle) * planetEntry.orbitRadius,
       );
-      planetEntry.shell.position.copy(planetEntry.mesh.position);
-      planetEntry.glow.position.copy(planetEntry.mesh.position);
-      planetEntry.ring?.position.copy(planetEntry.mesh.position);
-      planetEntry.orbitOccluder.position.copy(planetEntry.mesh.position);
+      planetEntry.mesh.rotation.y += delta * planetEntry.rotationSpeed;
+      planetEntry.shell.position.set(0, 0, 0);
+      planetEntry.glow.position.set(0, 0, 0);
+      planetEntry.ring?.position.set(0, 0, 0);
+      planetEntry.orbitOccluder.position.copy(planetEntry.anchor.position);
 
       const shellMaterial = planetEntry.shell.material;
       const glowMaterial = planetEntry.glow.material;
@@ -2276,7 +2739,7 @@ const bootBlackholeDemo = () => {
 
     observer.update(delta);
     updatePresentation(delta);
-    updateFriendPlanetSystem();
+    updateFriendPlanetSystem(delta);
     updateUniforms();
     composer.render();
     updateReadableContrast();

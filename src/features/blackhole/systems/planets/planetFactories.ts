@@ -373,21 +373,179 @@ export const createPlanetRing = (friend: FriendPlanet, planetRadius: number) => 
   const innerScale = clamp((ring.inner_radius ?? 0) * radiusRatio || 1.28, 1.1, 2.8);
   const outerScale = clamp((ring.outer_radius ?? 0) * radiusRatio || 1.62, innerScale + 0.08, 3.4);
   const ringColor = getPlanetColor(ring.color, '#d7d1c4');
-  const geometry = new THREE.RingGeometry(planetRadius * innerScale, planetRadius * outerScale, 96);
-  const material = new THREE.MeshBasicMaterial({
-    color: ringColor,
-    transparent: true,
-    opacity: 0.48,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.rotation.x = Math.PI / 2;
-  mesh.rotation.z = Math.PI * 0.18;
-  mesh.renderOrder = 3;
-  mesh.userData.baseOpacity = material.opacity;
+  const innerRadius = planetRadius * innerScale;
+  const outerRadius = planetRadius * outerScale;
+  const ringWidth = outerRadius - innerRadius;
+  const particleCount = Math.round(
+    clamp(2400 + ringWidth * 7600 + planetRadius * 1200, 3200, 18000),
+  );
+  const positions = new Float32Array(particleCount * 3);
+  const scales = new Float32Array(particleCount);
+  const seeds = new Float32Array(particleCount);
+  const albedos = new Float32Array(particleCount);
+  const angularVelocities = new Float32Array(particleCount);
+  const ringBands = [
+    { center: 0.08, width: 0.05, weight: 1.05 },
+    { center: 0.2, width: 0.045, weight: 0.92 },
+    { center: 0.36, width: 0.055, weight: 1.18 },
+    { center: 0.5, width: 0.038, weight: 0.78 },
+    { center: 0.69, width: 0.052, weight: 0.88 },
+    { center: 0.84, width: 0.04, weight: 0.62 },
+  ] as const;
+  const totalBandWeight = ringBands.reduce((sum, band) => sum + band.weight, 0);
 
-  return mesh;
+  const pickRingBand = () => {
+    let threshold = Math.random() * totalBandWeight;
+
+    for (const band of ringBands) {
+      threshold -= band.weight;
+      if (threshold <= 0) {
+        return band;
+      }
+    }
+
+    return ringBands[ringBands.length - 1];
+  };
+
+  for (let index = 0; index < particleCount; index += 1) {
+    const band = pickRingBand();
+    const jitter = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+    const radiusMix = clamp(band.center + jitter * band.width, 0.01, 0.99);
+    const radius = THREE.MathUtils.lerp(innerRadius, outerRadius, radiusMix);
+    const angle = Math.random() * Math.PI * 2;
+    const thicknessScale = THREE.MathUtils.lerp(0.018, 0.036, Math.max(0.0, 0.65 - radiusMix));
+    const thickness = (Math.random() - 0.5) * planetRadius * thicknessScale;
+
+    positions[index * 3] = Math.cos(angle) * radius;
+    positions[index * 3 + 1] = thickness;
+    positions[index * 3 + 2] = Math.sin(angle) * radius;
+    scales[index] = THREE.MathUtils.lerp(0.42, 1.08, Math.pow(Math.random(), 0.82));
+    seeds[index] = Math.random();
+    albedos[index] = THREE.MathUtils.lerp(0.72, 1.02, band.weight / 1.18);
+    angularVelocities[index] = THREE.MathUtils.lerp(0.68, 0.16, Math.pow(radiusMix, 0.72));
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('scale', new THREE.BufferAttribute(scales, 1));
+  geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute('albedo', new THREE.BufferAttribute(albedos, 1));
+  geometry.setAttribute('angularVelocity', new THREE.BufferAttribute(angularVelocities, 1));
+
+  const baseOpacity = clamp(0.28 + ringWidth * 0.045, 0.24, 0.38);
+  const material = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      time: { value: 0 },
+      ringColor: { value: ringColor },
+      innerRadius: { value: innerRadius },
+      outerRadius: { value: outerRadius },
+      opacity: { value: baseOpacity },
+      pointScale: { value: planetRadius * 24 },
+      brightness: { value: 1 },
+    },
+    vertexShader: `
+      attribute float scale;
+      attribute float seed;
+      attribute float albedo;
+      attribute float angularVelocity;
+
+      uniform float time;
+      uniform float innerRadius;
+      uniform float outerRadius;
+      uniform float pointScale;
+      uniform float brightness;
+
+      varying float vRadiusMix;
+      varying float vSeed;
+      varying float vAlbedo;
+      varying float vBrightness;
+
+      void main() {
+        float radius = length(position.xz);
+        float normalizedRadius = clamp((radius - innerRadius) / max(outerRadius - innerRadius, 0.0001), 0.0, 1.0);
+        float banding = sin(normalizedRadius * 42.0 + seed * 18.0 + time * 0.06) * 0.5 + 0.5;
+        float orbitAngle = atan(position.z, position.x) + time * angularVelocity + seed * 0.08;
+        vec3 displacedPosition = vec3(
+          cos(orbitAngle) * radius,
+          position.y,
+          sin(orbitAngle) * radius
+        );
+        displacedPosition.y += sin(time * 0.28 + seed * 31.4) * 0.0025;
+
+        vec4 mvPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
+        float distanceScale = clamp(pointScale / max(-mvPosition.z, 0.1), 0.0, 16.0);
+        gl_PointSize = max(0.9, scale * distanceScale * (0.82 + banding * 0.18));
+        gl_Position = projectionMatrix * mvPosition;
+
+        vRadiusMix = normalizedRadius;
+        vSeed = seed;
+        vAlbedo = albedo;
+        vBrightness = brightness;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 ringColor;
+      uniform float opacity;
+      uniform float time;
+
+      varying float vRadiusMix;
+      varying float vSeed;
+      varying float vAlbedo;
+      varying float vBrightness;
+
+      float bandShape(float value, float center, float width) {
+        return 1.0 - smoothstep(width, width * 1.85, abs(value - center));
+      }
+
+      void main() {
+        vec2 centered = gl_PointCoord - vec2(0.5);
+        float pointDistance = length(centered);
+        float particleMask = 1.0 - smoothstep(0.2, 0.5, pointDistance);
+        if (particleMask <= 0.01) {
+          discard;
+        }
+
+        float edgeFade = smoothstep(0.02, 0.12, vRadiusMix) * (1.0 - smoothstep(0.88, 0.98, vRadiusMix));
+        float broadBands = 0.0;
+        broadBands += bandShape(vRadiusMix, 0.08, 0.055) * 0.94;
+        broadBands += bandShape(vRadiusMix, 0.2, 0.048) * 0.78;
+        broadBands += bandShape(vRadiusMix, 0.36, 0.06) * 1.0;
+        broadBands += bandShape(vRadiusMix, 0.5, 0.04) * 0.62;
+        broadBands += bandShape(vRadiusMix, 0.69, 0.055) * 0.76;
+        broadBands += bandShape(vRadiusMix, 0.84, 0.042) * 0.52;
+        broadBands = clamp(broadBands, 0.0, 1.0);
+
+        float gapMask = 1.0;
+        gapMask *= 1.0 - bandShape(vRadiusMix, 0.28, 0.028) * 0.42;
+        gapMask *= 1.0 - bandShape(vRadiusMix, 0.61, 0.022) * 0.78;
+        gapMask *= 1.0 - bandShape(vRadiusMix, 0.77, 0.018) * 0.5;
+
+        float microStrata = 0.88 + 0.12 * sin(vRadiusMix * 180.0 + vSeed * 9.0);
+        float sparkle = 0.94 + 0.06 * sin(time * 0.85 + vSeed * 51.0 + pointDistance * 10.0);
+        float density = mix(0.08, 1.0, broadBands) * gapMask * edgeFade * microStrata;
+        vec3 color = mix(ringColor * 0.78, vec3(0.98, 0.99, 1.0), 0.08 + broadBands * 0.1 + vAlbedo * 0.08);
+        float alpha = opacity * particleMask * density * sparkle * vAlbedo * vBrightness;
+
+        if (alpha <= 0.01) {
+          discard;
+        }
+
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  points.rotation.z = Math.PI * 0.18;
+  points.renderOrder = 3;
+  points.userData.baseOpacity = baseOpacity;
+  points.userData.baseBrightness = 1;
+
+  return points;
 };
 
 export type BuildPlanetEntryParams = {

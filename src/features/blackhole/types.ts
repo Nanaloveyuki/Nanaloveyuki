@@ -183,7 +183,7 @@ export type PlanetEntry = {
   mesh: THREE.Mesh;
   shell: THREE.Mesh;
   glow: THREE.Sprite;
-  ring: THREE.Mesh | null;
+  ring: THREE.Points | null;
   orbitOccluder: THREE.Mesh;
   shellBaseColor: THREE.Color;
   shellBaseOpacity: number;

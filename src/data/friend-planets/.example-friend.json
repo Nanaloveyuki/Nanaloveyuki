@@ -14,9 +14,9 @@
       "background_comment": "这里是行星的背景颜色",
       "ring": {
         "is_show": true,
-        "inner_radius": 60,
-        "outer_radius": 70,
-        "color": "#ffaa00",
+        "inner_radius": 70,
+        "outer_radius": 98,
+        "color": "#e7efff",
         "color_comment": "这里是行星环的颜色"
       },
       "temperature": {
@@ -77,8 +77,8 @@
         },
         "atmosphere_visual": {
           "is_show": true,
-          "color": "#a9cfff",
-          "intensity": 0.55,
+          "color": "#c5dcff",
+          "intensity": 0.64,
           "rim_power": 2.8
         },
         "poles": {

@@ -135,11 +135,18 @@ export const createPlanetSystem = (
       }
 
       const ringMaterial = planetEntry.ring?.material;
-      if (ringMaterial instanceof THREE.MeshBasicMaterial) {
+      if (ringMaterial instanceof THREE.ShaderMaterial) {
         const baseOpacity = (planetEntry.ring?.userData.baseOpacity as number | undefined) ?? 0.48;
-        ringMaterial.opacity = THREE.MathUtils.lerp(
-          ringMaterial.opacity,
-          isSelected ? Math.min(baseOpacity + 0.14, 0.72) : baseOpacity,
+        const baseBrightness =
+          (planetEntry.ring?.userData.baseBrightness as number | undefined) ?? 1;
+        ringMaterial.uniforms.opacity.value = THREE.MathUtils.lerp(
+          ringMaterial.uniforms.opacity.value,
+          isSelected ? Math.min(baseOpacity + 0.16, 0.8) : baseOpacity,
+          isSelected ? 0.16 : 0.12,
+        );
+        ringMaterial.uniforms.brightness.value = THREE.MathUtils.lerp(
+          ringMaterial.uniforms.brightness.value,
+          isSelected ? baseBrightness + 0.18 : baseBrightness,
           isSelected ? 0.16 : 0.12,
         );
       }
@@ -160,6 +167,11 @@ export const createPlanetSystem = (
         .normalize();
       planetMaterial.uniforms.lightDirection.value.copy(lightDirection);
       planetMaterial.uniforms.time.value = time + planetEntry.hueShift * 20;
+
+      const ringMaterial = planetEntry.ring?.material;
+      if (ringMaterial instanceof THREE.ShaderMaterial) {
+        ringMaterial.uniforms.time.value = time + planetEntry.hueShift * 11;
+      }
     });
   };
 

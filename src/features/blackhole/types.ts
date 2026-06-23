@@ -98,6 +98,7 @@ export type FriendPlanetEquatorAppearance = {
 };
 
 export type FriendPlanetAppearanceProfile = {
+  template?: string;
   surface?: FriendPlanetSurfaceAppearance;
   water?: FriendPlanetWaterAppearance;
   land?: FriendPlanetLandAppearance;

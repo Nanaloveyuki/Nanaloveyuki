@@ -51,6 +51,7 @@
         "scientific_notation": "10**24"
       },
       "appearance": {
+        "template": "flag-mtf",
         "surface": {
           "base_color": "#5f89d7",
           "shadow_color": "#243b72",

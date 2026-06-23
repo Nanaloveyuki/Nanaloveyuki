@@ -61,16 +61,43 @@ export const getPlanetRadius = (friend: FriendPlanet, fallbackRadius: number) =>
   return fallbackRadius;
 };
 
-export const getPlanetOrbitRadius = (friend: FriendPlanet, fallbackOrbitRadius: number) => {
+export const getPlanetOrbitDistanceAu = (friend: FriendPlanet) => {
   const distance = friend.planet?.orbit?.distance_from_star;
   const unit = friend.planet?.orbit?.distance_unit ?? 'AU';
 
   if (typeof distance !== 'number' || !Number.isFinite(distance) || distance <= 0) {
+    return null;
+  }
+
+  return unit === 'km' ? distance / 149_597_870.7 : distance;
+};
+
+const BLACK_HOLE_MASS_SOLAR = 4.1e6;
+const SCHWARZSCHILD_RADIUS_AU = 1.97327e-8 * BLACK_HOLE_MASS_SOLAR;
+const ORBIT_DISPLAY_INNER_RADIUS = 10.8;
+const ORBIT_DISPLAY_SCALE = 2.9;
+const ORBIT_DISPLAY_CURVE = 1.85;
+const ORBIT_DISPLAY_MAX_RADIUS = 44.0;
+
+export const getPlanetOrbitRadiusFromPhysicalScale = (distanceAu: number) => {
+  const distanceInSchwarzschildRadii = distanceAu / SCHWARZSCHILD_RADIUS_AU;
+  const compressedDistance = Math.pow(
+    Math.log10(distanceInSchwarzschildRadii + 1.0),
+    ORBIT_DISPLAY_CURVE,
+  );
+  const displayRadius = ORBIT_DISPLAY_INNER_RADIUS + compressedDistance * ORBIT_DISPLAY_SCALE;
+
+  return clamp(displayRadius, ORBIT_DISPLAY_INNER_RADIUS, ORBIT_DISPLAY_MAX_RADIUS);
+};
+
+export const getPlanetOrbitRadius = (friend: FriendPlanet, fallbackOrbitRadius: number) => {
+  const normalizedAu = getPlanetOrbitDistanceAu(friend);
+
+  if (normalizedAu === null) {
     return fallbackOrbitRadius;
   }
 
-  const normalizedAu = unit === 'km' ? distance / 149_597_870.7 : distance;
-  return clamp(3.9 + normalizedAu * 1.95, 4.2, 11.8);
+  return getPlanetOrbitRadiusFromPhysicalScale(normalizedAu);
 };
 
 export const getPlanetOrbitSpeed = (friend: FriendPlanet, fallbackOrbitSpeed: number) => {
@@ -193,6 +220,8 @@ export const createPlanetMaterial = (friend: FriendPlanet) => {
     surfaceColor,
     0.34,
   );
+  const appearanceTemplate = appearance.appearanceTemplate;
+  const useFlagBands = appearanceTemplate === 'flag-mtf';
 
   return new THREE.ShaderMaterial({
     transparent: false,
@@ -231,6 +260,7 @@ export const createPlanetMaterial = (friend: FriendPlanet) => {
       equatorWidth: { value: appearance.equatorWidth },
       equatorIntensity: { value: appearance.equatorIntensity },
       equatorVisible: { value: appearance.equatorVisible ? 1 : 0 },
+      useFlagBands: { value: useFlagBands ? 1 : 0 },
     },
     vertexShader: `
       varying vec3 vWorldNormal;
@@ -284,6 +314,7 @@ export const createPlanetMaterial = (friend: FriendPlanet) => {
       uniform float equatorWidth;
       uniform float equatorIntensity;
       uniform float equatorVisible;
+      uniform float useFlagBands;
 
       float hash(vec2 point) {
         return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
@@ -327,6 +358,7 @@ export const createPlanetMaterial = (friend: FriendPlanet) => {
         float detailNoise = fbm(vUv * (terrainScale * 2.7) + vec2(0.0, time * 0.002));
         float cloudNoise = fbm(vUv * (terrainScale * 1.45) + vec2(time * cloudSpeed * 0.08, time * cloudSpeed * 0.03));
         float bandNoise = sin(vUv.y * 18.0 + time * 0.3) * 0.5 + 0.5;
+        float latitude = vUv.y;
         float craterMask = smoothstep(0.62, 0.88, noise(vUv * 28.0));
         float waterMask = waterVisible * (1.0 - smoothstep(waterCoverage - 0.15, waterCoverage + terrainContrast * 0.25, continentNoise));
         float landMask = smoothstep(landCoverage - terrainContrast * 0.22, landCoverage + 0.08, continentNoise + detailNoise * 0.18);
@@ -341,6 +373,22 @@ export const createPlanetMaterial = (friend: FriendPlanet) => {
         vec3 baseDay = mix(oceanColor, landBase, max(landMask, 1.0 - waterMask));
         vec3 detailColor = mix(detailColorA, detailColorB, detailNoise);
         vec3 dayColor = mix(baseDay, detailColor, 0.24 + terrainContrast * 0.26);
+
+        if (useFlagBands > 0.5) {
+          vec3 mtfBlue = poleColor;
+          vec3 mtfPink = landColor;
+          vec3 mtfWhite = equatorColor;
+          vec3 stripeColor = mtfBlue;
+          stripeColor = mix(stripeColor, mtfPink, smoothstep(0.12, 0.24, latitude));
+          stripeColor = mix(stripeColor, mtfWhite, smoothstep(0.38, 0.46, latitude));
+          stripeColor = mix(stripeColor, mtfPink, smoothstep(0.54, 0.62, latitude));
+          stripeColor = mix(stripeColor, mtfBlue, smoothstep(0.76, 0.88, latitude));
+          float stripeInfluence = 0.82 + bandNoise * 0.08;
+          dayColor = mix(dayColor, stripeColor, stripeInfluence);
+          dayColor = mix(dayColor, landSecondaryColor, smoothstep(0.08, 0.22, latitude) * (1.0 - smoothstep(0.32, 0.44, latitude)) * 0.18);
+          dayColor = mix(dayColor, landSecondaryColor, smoothstep(0.56, 0.68, latitude) * (1.0 - smoothstep(0.78, 0.9, latitude)) * 0.18);
+        }
+
         dayColor = mix(dayColor, landSecondaryColor, bandNoise * equatorIntensity * 0.1);
         dayColor = mix(dayColor, detailColorB, craterMask * 0.18);
         dayColor = mix(dayColor, poleColor, poleMask * 0.78);

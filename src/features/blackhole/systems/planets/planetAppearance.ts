@@ -50,6 +50,52 @@ export const colorToRgba = (color: THREE.Color, alpha: number) => {
 export const formatPercent = (value: number) => `${Math.round(clamp(value, 0, 1) * 100)}%`;
 
 export const getPlanetAppearanceProfile = (friend: FriendPlanet) => {
+  const appearanceTemplatePresets = {
+    'flag-mtf': {
+      surface: {
+        base_color: '#f7f9ff',
+        shadow_color: '#273154',
+        terrain_scale: 4.2,
+        terrain_contrast: 0.14,
+      },
+      water: {
+        is_show: true,
+        color: '#f8fbff',
+        coverage: 0.52,
+        gloss: 0.7,
+      },
+      land: {
+        color: '#f2b8da',
+        secondary_color: '#7fcef4',
+        coverage: 0.52,
+      },
+      clouds: {
+        is_show: true,
+        color: '#ffffff',
+        opacity: 0.12,
+        coverage: 0.38,
+        speed: 0.08,
+      },
+      atmosphere_visual: {
+        is_show: true,
+        color: '#e9f4ff',
+        intensity: 0.5,
+        rim_power: 2.6,
+      },
+      poles: {
+        is_show: true,
+        color: '#79c8ef',
+        size: 0.24,
+      },
+      equator: {
+        is_show: true,
+        color: '#fffdfd',
+        width: 0.12,
+        intensity: 0.82,
+      },
+    },
+  } as const;
+
   const defaults: Record<
     FriendPlanetType,
     {
@@ -118,13 +164,15 @@ export const getPlanetAppearanceProfile = (friend: FriendPlanet) => {
   const palette = defaults[friend.type];
   const profile = friend.planet;
   const appearance = profile?.appearance;
-  const surface = appearance?.surface;
-  const water = appearance?.water;
-  const land = appearance?.land;
-  const clouds = appearance?.clouds;
-  const atmosphereVisual = appearance?.atmosphere_visual;
-  const poles = appearance?.poles;
-  const equator = appearance?.equator;
+  const templateName = appearance?.template as keyof typeof appearanceTemplatePresets | undefined;
+  const template = templateName ? appearanceTemplatePresets[templateName] : undefined;
+  const surface = { ...template?.surface, ...appearance?.surface };
+  const water = { ...template?.water, ...appearance?.water };
+  const land = { ...template?.land, ...appearance?.land };
+  const clouds = { ...template?.clouds, ...appearance?.clouds };
+  const atmosphereVisual = { ...template?.atmosphere_visual, ...appearance?.atmosphere_visual };
+  const poles = { ...template?.poles, ...appearance?.poles };
+  const equator = { ...template?.equator, ...appearance?.equator };
 
   const baseColor = getPlanetColor(surface?.base_color ?? profile?.color, palette.surfaceBase);
   const shadowColor = getPlanetColor(
@@ -181,5 +229,6 @@ export const getPlanetAppearanceProfile = (friend: FriendPlanet) => {
     equatorColor,
     equatorWidth: clamp(equator?.width ?? 0.08, 0.02, 0.24),
     equatorIntensity: clamp(equator?.intensity ?? 0.32, 0, 1),
+    appearanceTemplate: templateName ?? 'default',
   };
 };

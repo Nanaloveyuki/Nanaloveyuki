@@ -1,0 +1,91 @@
+{
+  "name": "Twisuki",
+  "url": "https://www.twis.uk",
+  "type": "warm",
+  "description": "一只喜欢到处贴贴的前端猫娘",
+  "planet": {
+    "width": 512,
+    "height": 512,
+    "radius": 7460,
+    "color": "#f7f9ff",
+    "background": "#1f284a",
+    "ring": {
+      "is_show": false,
+      "inner_radius": 0,
+      "outer_radius": 0,
+      "color": "#ffffff"
+    },
+    "temperature": {
+      "min": -12,
+      "max": 18,
+      "unit": "C"
+    },
+    "atmosphere": {
+      "is_show": true,
+      "composition": "氮气、氧气、漂浮的云絮",
+      "pressure": 1.02,
+      "pressure_unit": "atm"
+    },
+    "orbit": {
+      "is_show": true,
+      "distance_from_star": 24.0,
+      "distance_unit": "AU",
+      "period": 468,
+      "period_unit": "days"
+    },
+    "weight": {
+      "value": 5.21,
+      "unit": "kg",
+      "scientific_notation": "10**24"
+    },
+    "appearance": {
+      "template": "flag-mtf",
+      "surface": {
+        "base_color": "#f7f9ff",
+        "shadow_color": "#1f284a",
+        "terrain_scale": 4.0,
+        "terrain_contrast": 0.12
+      },
+      "water": {
+        "is_show": true,
+        "color": "#fffdfd",
+        "coverage": 0.5,
+        "gloss": 0.74
+      },
+      "land": {
+        "color": "#f5b3d8",
+        "secondary_color": "#79c8ef",
+        "coverage": 0.52
+      },
+      "clouds": {
+        "is_show": true,
+        "color": "#ffffff",
+        "opacity": 0.1,
+        "coverage": 0.34,
+        "speed": 0.06
+      },
+      "atmosphere_visual": {
+        "is_show": true,
+        "color": "#ecf5ff",
+        "intensity": 0.48,
+        "rim_power": 2.5
+      },
+      "poles": {
+        "is_show": true,
+        "color": "#79c8ef",
+        "size": 0.24
+      },
+      "equator": {
+        "is_show": true,
+        "color": "#fffdfd",
+        "width": 0.12,
+        "intensity": 0.84
+      }
+    },
+    "physics": {
+      "rotation_speed": 19.4,
+      "rotation_unit": "hours",
+      "axial_tilt": 17.8
+    }
+  }
+}

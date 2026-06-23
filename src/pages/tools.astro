@@ -1,16 +1,10 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import BlackholeScene from '../components/BlackholeScene.astro';
-import { profile } from '../data/site';
+import BlackholeScene from '@blackhole/BlackholeScene.astro';
+import { profile } from '@data/site';
+import { tools } from '@data/tools';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const pageTitle = `${profile.name} | 工具导航`;
-const toolsModule = await import('../../public/tools.json');
-const tools = Object.entries(toolsModule.default as Record<string, string>).map(
-  ([label, href]) => ({
-    label,
-    href,
-  }),
-);
 ---
 
 <BaseLayout

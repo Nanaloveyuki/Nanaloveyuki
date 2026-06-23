@@ -1,7 +1,7 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { formatBlogDate, getPublishedBlogEntries } from '../data/blog';
-import { profile } from '../data/site';
+import { formatBlogDate, getPublishedBlogEntries } from '@data/blog';
+import { profile } from '@data/site';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const pageTitle = `${profile.name} | 文章与记录`;
 const posts = await getPublishedBlogEntries();

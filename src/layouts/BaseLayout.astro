@@ -4,9 +4,9 @@ import '@fontsource/fraunces/700.css';
 import '@fontsource/noto-sans-sc/400.css';
 import '@fontsource/noto-sans-sc/500.css';
 import '@fontsource/noto-sans-sc/700.css';
-import '../styles/global.css';
-import { navLinks, profile, socialLinks } from '../data/site';
-import type { FriendPlanet } from '../scripts/blackhole/types';
+import '@/styles/global.css';
+import { navLinks, profile, socialLinks } from '@data/site';
+import type { FriendPlanet } from '@blackhole/types';
 
 type Props = {
   title: string;
@@ -30,12 +30,6 @@ const {
 const basePath = import.meta.env.BASE_URL;
 const assetBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
 const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
-const blackholeScript =
-  blackholeMode === 'home'
-    ? '../scripts/blackhole-demo.ts'
-    : blackholeMode === 'orbit'
-      ? '../scripts/blackhole-orbit.ts'
-      : null;
 ---
 
 <!doctype html>
@@ -286,7 +280,7 @@ const blackholeScript =
     }
 
     {
-      useBlackholeShell && blackholeScript && (
+      useBlackholeShell && blackholeMode !== 'none' && (
         <>
           <script define:vars={{ assetBase }} is:inline>
             window.__BLACKHOLE_ASSET_BASE__ = assetBase;
@@ -298,8 +292,7 @@ const blackholeScript =
             </script>
           )}
 
-          {blackholeMode === 'home' && <script>import '../scripts/blackhole-demo.ts';</script>}
-          {blackholeMode === 'orbit' && <script>import '../scripts/blackhole-orbit.ts';</script>}
+          <script>import '@blackhole/runtimeLoader.ts';</script>
         </>
       )
     }

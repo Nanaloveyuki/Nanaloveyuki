@@ -1,11 +1,10 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import BlackholeScene from '../components/BlackholeScene.astro';
-import { profile, type Project } from '../data/site';
+import BlackholeScene from '@blackhole/BlackholeScene.astro';
+import { projects } from '@data/projects';
+import { profile } from '@data/site';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const pageTitle = `${profile.name} | 项目展示`;
-const projectsModule = await import('../../public/projects.json');
-const projects = projectsModule.default as Project[];
 ---
 
 <BaseLayout

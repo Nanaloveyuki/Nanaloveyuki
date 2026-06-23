@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-import type { PerformanceConfig } from './types';
+import type { PerformanceConfig } from '@blackhole/types';
 
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));

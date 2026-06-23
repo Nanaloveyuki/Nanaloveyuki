@@ -196,3 +196,52 @@ export type PlanetEntry = {
   hueShift: number;
   phase: number;
 };
+
+export type OrbitSceneTarget = {
+  distance: number;
+  fov: number;
+  autoYaw: number;
+  autoPitch: number;
+  driftAmplitude: number;
+  starYawSpeed: number;
+  bloomStrength: number;
+  bloomRadius: number;
+  bloomThreshold: number;
+};
+
+export type PlanetPanelElements = {
+  panel: HTMLElement | null;
+  close: HTMLButtonElement | null;
+  type: HTMLElement | null;
+  name: HTMLElement | null;
+  description: HTMLElement | null;
+  preview: HTMLElement | null;
+  previewAtmosphere: HTMLElement | null;
+  previewPlanet: HTMLElement | null;
+  previewWater: HTMLElement | null;
+  previewLand: HTMLElement | null;
+  previewClouds: HTMLElement | null;
+  previewEquator: HTMLElement | null;
+  previewPoleNorth: HTMLElement | null;
+  previewPoleSouth: HTMLElement | null;
+  previewRing: HTMLElement | null;
+  previewCopy: HTMLElement | null;
+  link: HTMLAnchorElement | null;
+  statType: HTMLElement | null;
+  statRadius: HTMLElement | null;
+  statTemperature: HTMLElement | null;
+  statAtmosphere: HTMLElement | null;
+  statOrbit: HTMLElement | null;
+  statWeight: HTMLElement | null;
+  statRotation: HTMLElement | null;
+  statTilt: HTMLElement | null;
+  statPoles: HTMLElement | null;
+  statEquator: HTMLElement | null;
+  statClouds: HTMLElement | null;
+  statSurface: HTMLElement | null;
+};
+
+export type FriendTooltipElements = {
+  root: HTMLElement | null;
+  name: HTMLElement | null;
+};

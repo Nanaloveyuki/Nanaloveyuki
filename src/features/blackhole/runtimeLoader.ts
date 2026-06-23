@@ -1,7 +1,9 @@
-const blackholePage = document.querySelector<HTMLElement>('[data-blackhole-page]');
-const blackholeScene = blackholePage?.dataset.blackholeScene;
+const getBlackholeScene = () =>
+  document.querySelector<HTMLElement>('[data-blackhole-page]')?.dataset.blackholeScene;
 
 const loadBlackholeRuntime = async () => {
+  const blackholeScene = getBlackholeScene();
+
   if (blackholeScene === 'home') {
     await import('@blackhole/blackhole-demo.ts');
     return;
@@ -25,3 +27,7 @@ if (typeof window.requestIdleCallback === 'function') {
     { once: true },
   );
 }
+
+document.addEventListener('astro:page-load', () => {
+  void loadBlackholeRuntime();
+});

@@ -1,0 +1,101 @@
+{
+  "name": "Snowykami",
+  "url": "https://sfkm.me",
+  "type": "warm",
+  "description": "古希腊掌管轻雪的神",
+  "planet": {
+    "width": 512,
+    "height": 512,
+    "radius": 7820,
+    "color": "#6ea8ff",
+    "color_comment": "这里是行星的外表颜色",
+    "background": "#112347",
+    "background_comment": "这里是行星的背景颜色",
+    "ring": {
+      "is_show": true,
+      "inner_radius": 9650,
+      "outer_radius": 12400,
+      "color": "#b7d8ff",
+      "color_comment": "这里是行星环的颜色"
+    },
+    "temperature": {
+      "min": -36,
+      "max": 14,
+      "unit": "C",
+      "unit_comment": "只接受 C(摄氏度) 和 K (开尔文)",
+      "comment": "这里是行星的温度范围和单位"
+    },
+    "atmosphere": {
+      "is_show": true,
+      "composition": "氮气、氧气、微量氩",
+      "composition_comment": "这里是行星大气的成分",
+      "pressure": 1.05,
+      "pressure_unit": "atm",
+      "pressure_unit_comment": "只接受 atm (大气压) 和 Pa (帕斯卡)",
+      "comment": "这里是行星大气的压力和单位"
+    },
+    "orbit": {
+      "is_show": true,
+      "distance_from_star": 4.5,
+      "distance_unit": "AU",
+      "distance_unit_comment": "只接受 AU (天文单位) 和 km (千米)",
+      "period": 412,
+      "period_unit": "days",
+      "period_unit_comment": "只接受 days (天) 和 years (年)",
+      "comment": "这里是行星的轨道信息，包括距离和周期"
+    },
+    "weight": {
+      "value": 6.84,
+      "unit": "kg",
+      "scientific_notation": "10**24"
+    },
+    "appearance": {
+      "surface": {
+        "base_color": "#6ea8ff",
+        "shadow_color": "#112347",
+        "terrain_scale": 7.2,
+        "terrain_contrast": 0.44
+      },
+      "water": {
+        "is_show": true,
+        "color": "#8cc4ff",
+        "coverage": 0.46,
+        "gloss": 0.82
+      },
+      "land": {
+        "color": "#4f78be",
+        "secondary_color": "#b1d3ff",
+        "coverage": 0.58
+      },
+      "clouds": {
+        "is_show": true,
+        "color": "#f2f7ff",
+        "opacity": 0.28,
+        "coverage": 0.49,
+        "speed": 0.2
+      },
+      "atmosphere_visual": {
+        "is_show": true,
+        "color": "#a8d2ff",
+        "intensity": 0.6,
+        "rim_power": 2.9
+      },
+      "poles": {
+        "is_show": true,
+        "color": "#dde9ff",
+        "size": 0.18
+      },
+      "equator": {
+        "is_show": true,
+        "color": "#9fc7ff",
+        "width": 0.08,
+        "intensity": 0.34
+      }
+    },
+    "physics": {
+      "rotation_speed": 17.2,
+      "rotation_unit": "hours",
+      "axial_tilt": 21.4
+    }
+  }
+}

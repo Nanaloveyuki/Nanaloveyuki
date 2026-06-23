@@ -2,18 +2,13 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BlackholeScene from '../components/BlackholeScene.astro';
 import { getPublishedBlogEntries } from '../data/blog';
+import { getFriendPlanets } from '../data/friends';
 import { profile } from '../data/site';
 
 const pageTitle = profile.name;
 const projectsModule = await import('../../public/projects.json');
 const projects = projectsModule.default as { name: string; href: string }[];
-const friendsModule = await import('../../public/friend.json');
-const friends = friendsModule.default as {
-  name: string;
-  url: string;
-  type: 'cool' | 'cold' | 'warm' | 'hot';
-  description: string;
-}[];
+const friends = await getFriendPlanets();
 const latestPosts = (await getPublishedBlogEntries()).slice(0, 5);
 
 const aboutParagraphs = [
@@ -30,6 +25,7 @@ const aboutParagraphs = [
   bodyClass="theme-blackhole"
   showFooter={false}
   blackholeMode="home"
+  friendPlanets={friends}
 >
   <BlackholeScene
     scene="home"

@@ -161,6 +161,7 @@ export type SceneTarget = {
 };
 
 export type BlackholeWindow = Window & {
+  __BLACKHOLE_FRIEND_PLANETS__?: FriendPlanet[];
   __BLACKHOLE_DEMO_INITIALIZED__?: boolean;
   __BLACKHOLE_DEMO_REFRESH__?: () => void;
   __BLACKHOLE_DEMO_HOST__?: HTMLElement | null;

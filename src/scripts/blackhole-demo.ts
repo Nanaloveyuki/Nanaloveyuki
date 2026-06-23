@@ -788,13 +788,13 @@ const bootBlackholeDemo = () => {
     });
 
   const loadFriendPlanets = async () => {
-    const response = await fetch(`${import.meta.env.BASE_URL}friend.json`);
+    const friendPlanets = blackholeWindow.__BLACKHOLE_FRIEND_PLANETS__;
 
-    if (!response.ok) {
-      throw new Error(`Failed to load friend planets: ${response.status}`);
+    if (!Array.isArray(friendPlanets)) {
+      throw new Error('Missing preloaded friend planets');
     }
 
-    return (await response.json()) as FriendPlanet[];
+    return friendPlanets;
   };
 
   const getPlanetGlowTexture = (type: FriendPlanetType) => {

@@ -22,10 +22,6 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('/src/features/blackhole/')) {
-              return 'blackhole-runtime';
-            }
-
             if (
               id.includes('/three/examples/jsm/postprocessing/') ||
               id.includes('/three/examples/jsm/shaders/')

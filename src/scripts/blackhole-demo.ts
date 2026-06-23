@@ -2002,6 +2002,7 @@ const bootBlackholeDemo = () => {
   const yawAdjustedLookTarget = new THREE.Vector3();
   const yawAdjustedRight = new THREE.Vector3();
   const pitchAxis = new THREE.Vector3();
+  const homeCenterDirection = new THREE.Vector3();
   const focusPlanetPosition = new THREE.Vector3();
   const focusOutward = new THREE.Vector3();
   const focusDesiredPosition = new THREE.Vector3();
@@ -2057,17 +2058,18 @@ const bootBlackholeDemo = () => {
       };
     }
 
-    const approachProgress = smoothstep(0.03, 0.68, state.scrollProgress);
-    const emergeProgress = smoothstep(0.68, 0.92, state.scrollProgress);
+    const approachProgress = smoothstep(0.03, 0.82, state.scrollProgress);
+    const horizonLockProgress = smoothstep(0.14, 0.84, state.scrollProgress);
+    const emergeProgress = smoothstep(0.72, 0.94, state.scrollProgress);
     const starfieldRotation = Math.max(emergeProgress, smoothstep(0.8, 1, state.scrollProgress));
 
     return {
-      distance: THREE.MathUtils.lerp(10, 1.52, approachProgress),
-      fov: THREE.MathUtils.lerp(90, 104, approachProgress * (1 - emergeProgress * 0.5)),
+      distance: THREE.MathUtils.lerp(10, 1.08, approachProgress),
+      fov: THREE.MathUtils.lerp(90, 112, horizonLockProgress * (1 - emergeProgress * 0.3)),
       orbit: false,
       dragEnabled: true,
-      dragRecenter: 0,
-      keyboardRecenter: 0,
+      dragRecenter: THREE.MathUtils.lerp(0, 0.18, horizonLockProgress),
+      keyboardRecenter: THREE.MathUtils.lerp(0, 0.14, horizonLockProgress),
       keyboardEnabled: true,
       autoYaw: 0,
       autoPitch: 0,
@@ -2199,13 +2201,14 @@ const bootBlackholeDemo = () => {
     if (maxScroll <= 0) return;
 
     const distanceFactor = clamp((observer.distance - 1.52) / (10 - 1.52), 0, 1);
+    const horizonBoost = THREE.MathUtils.lerp(1, 2.8, smoothstep(0.12, 0.88, state.scrollProgress));
     const storyProgressBoost = THREE.MathUtils.lerp(
       0.9,
-      1.8,
+      2.2,
       smoothstep(0.52, 0.94, state.scrollProgress),
     );
-    const baseScrollMultiplier = THREE.MathUtils.lerp(0.34, 1.06, Math.sqrt(distanceFactor));
-    const scrollMultiplier = baseScrollMultiplier * storyProgressBoost;
+    const baseScrollMultiplier = THREE.MathUtils.lerp(0.42, 1.18, Math.sqrt(distanceFactor));
+    const scrollMultiplier = baseScrollMultiplier * storyProgressBoost * horizonBoost;
     const nextScroll = clamp(window.scrollY + event.deltaY * scrollMultiplier, 0, maxScroll);
 
     if (nextScroll === window.scrollY) return;
@@ -2217,7 +2220,23 @@ const bootBlackholeDemo = () => {
   const updatePresentation = (delta: number) => {
     const target = getSceneTarget();
     const sceneName = getSceneName();
-    const sceneBlend = clamp(1 - Math.exp(-delta * 5.2), 0.045, 0.2);
+    const homeTransitionBoost =
+      sceneName === 'home'
+        ? THREE.MathUtils.lerp(1, 3.2, smoothstep(0.08, 0.88, state.scrollProgress))
+        : 1;
+    const distanceGapBoost =
+      sceneName === 'home'
+        ? THREE.MathUtils.lerp(
+            1,
+            1.8,
+            clamp(Math.abs(cameraConfig.distance - target.distance) / 4.5, 0, 1),
+          )
+        : 1;
+    const sceneBlend = clamp(
+      (1 - Math.exp(-delta * 5.2)) * homeTransitionBoost * distanceGapBoost,
+      0.045,
+      sceneName === 'home' ? 0.38 : 0.2,
+    );
 
     cameraConfig.distance = THREE.MathUtils.lerp(
       cameraConfig.distance,
@@ -2233,9 +2252,10 @@ const bootBlackholeDemo = () => {
     if (sceneName === 'home') {
       homeBasePosition.copy(homeBaseDirection).multiplyScalar(cameraConfig.distance);
       const isPlanetFocusTransitionActive = focusPlanetEntry !== null;
+      const homeLockProgress = clamp(target.dragRecenter / 0.18, 0, 1);
 
       cameraControl.setEnabled(target.dragEnabled && !isPlanetFocusTransitionActive);
-      cameraControl.update(target.dragRecenter);
+      cameraControl.update(0);
 
       homeForward.set(
         Math.sin(cameraControl.yaw) * Math.cos(cameraControl.pitch),
@@ -2257,7 +2277,7 @@ const bootBlackholeDemo = () => {
         delta,
         currentCameraPosition.length(),
         target.keyboardEnabled && !isPlanetFocusTransitionActive,
-        0,
+        target.keyboardRecenter,
         {
           forward: homeForward,
           right,
@@ -2329,15 +2349,65 @@ const bootBlackholeDemo = () => {
         ) {
           focusPlanetEntry = null;
         }
+      } else if (homeLockProgress > 0) {
+        const positionLockBlend = clamp(
+          1 - Math.exp(-delta * THREE.MathUtils.lerp(2.8, 10.4, homeLockProgress)),
+          0.02,
+          0.24,
+        );
+
+        currentCameraPosition.lerp(homeBasePosition, positionLockBlend);
+        keyboardMoveControl.velocity.multiplyScalar(1 - clamp(homeLockProgress * 0.22, 0, 0.52));
       }
 
       if (currentCameraPosition.lengthSq() > 0) {
-        if (currentCameraPosition.length() < 2.1) {
-          currentCameraPosition.setLength(2.1);
+        const minimumHomeDistance = THREE.MathUtils.lerp(
+          2.1,
+          1.06,
+          smoothstep(0.16, 0.88, state.scrollProgress),
+        );
+
+        if (currentCameraPosition.length() < minimumHomeDistance) {
+          currentCameraPosition.setLength(minimumHomeDistance);
         } else if (currentCameraPosition.length() > 96) {
           currentCameraPosition.setLength(96);
         }
       }
+
+      if (!isPlanetFocusTransitionActive && !cameraControl.isCapturing && target.dragRecenter > 0) {
+        homeCenterDirection.copy(origin).sub(currentCameraPosition);
+
+        if (homeCenterDirection.lengthSq() > 1e-6) {
+          homeCenterDirection.normalize();
+
+          const autoYaw = Math.atan2(homeCenterDirection.x, -homeCenterDirection.z);
+          const autoPitch = Math.asin(clamp(homeCenterDirection.y, -1, 1));
+          const autoAimBlend = clamp(
+            1 - Math.exp(-delta * THREE.MathUtils.lerp(4.2, 10.5, target.dragRecenter / 0.18)),
+            0.03,
+            0.24,
+          );
+
+          cameraControl.yaw = lerpAngle(cameraControl.yaw, autoYaw, autoAimBlend);
+          cameraControl.pitch = THREE.MathUtils.lerp(cameraControl.pitch, autoPitch, autoAimBlend);
+        }
+      }
+
+      homeForward.set(
+        Math.sin(cameraControl.yaw) * Math.cos(cameraControl.pitch),
+        Math.sin(cameraControl.pitch),
+        -Math.cos(cameraControl.yaw) * Math.cos(cameraControl.pitch),
+      );
+      homeForward.normalize();
+
+      right.crossVectors(homeForward, worldUp);
+      if (right.lengthSq() <= 1e-6) {
+        right.set(1, 0, 0);
+      } else {
+        right.normalize();
+      }
+      upVector.crossVectors(right, homeForward).normalize();
+
       keyboardMoveControl.offset.copy(currentCameraPosition).sub(homeBasePosition);
 
       observer.position.copy(currentCameraPosition);

@@ -24,7 +24,7 @@ const getSceneName = (): SceneName => {
   return (page?.dataset.blackholeScene as SceneName | undefined) ?? 'projects';
 };
 
-const bootBlackholeOrbit = () => {
+export const bootBlackholeOrbit = () => {
   const blackholeWindow = window as BlackholeWindow;
   if (
     blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ &&
@@ -410,9 +410,3 @@ const bootBlackholeOrbit = () => {
   blackholeWindow.__BLACKHOLE_DISPOSE__ = dispose;
   window.addEventListener('pagehide', dispose, { once: true });
 };
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootBlackholeOrbit, { once: true });
-} else {
-  bootBlackholeOrbit();
-}

@@ -44,7 +44,7 @@ import {
   smoothstep,
 } from '@blackhole/math';
 
-const bootBlackholeDemo = () => {
+export const bootBlackholeDemo = () => {
   const blackholeWindow = window as BlackholeWindow;
   if (
     blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ &&
@@ -992,9 +992,3 @@ const bootBlackholeDemo = () => {
 
   window.addEventListener('pagehide', dispose, { once: true });
 };
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootBlackholeDemo, { once: true });
-} else {
-  bootBlackholeDemo();
-}

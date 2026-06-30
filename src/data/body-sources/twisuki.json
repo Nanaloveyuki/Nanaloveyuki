@@ -1,9 +1,11 @@
 {
+  "id": "twisuki",
   "name": "Twisuki",
   "url": "https://www.twis.uk",
+  "kind": "planet",
   "type": "warm",
   "description": "一只喜欢到处贴贴的前端猫娘",
-  "planet": {
+  "body": {
     "width": 512,
     "height": 512,
     "radius": 7460,
@@ -30,10 +32,15 @@
       "is_show": true,
       "distance_from_star": 24.0,
       "distance_unit": "AU",
+      "primary_mass": {
+        "value": 4.1,
+        "unit": "kg",
+        "scientific_notation": "10**36"
+      },
       "period": 468,
       "period_unit": "days"
     },
-    "weight": {
+    "mass": {
       "value": 5.21,
       "unit": "kg",
       "scientific_notation": "10**24"
@@ -83,7 +90,7 @@
       }
     },
     "physics": {
-      "rotation_speed": 19.4,
+      "rotation_period": 19.4,
       "rotation_unit": "hours",
       "axial_tilt": 17.8
     }

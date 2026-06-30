@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+import type { CelestialBodyKind } from '@blackhole/domain/celestialTypes';
+
 export const HOST_SELECTOR = '[data-blackhole-root]';
 export const PAGE_SELECTOR = '[data-blackhole-page]';
 export const SCROLL_TRACK_SELECTOR = '[data-blackhole-scroll-track]';
@@ -7,8 +9,8 @@ export const HEADER_SELECTOR = '[data-site-header]';
 export const NIGHT_WARNING_SELECTOR = '[data-blackhole-night-warning]';
 export const NIGHT_WARNING_CONFIRM_SELECTOR = '[data-blackhole-night-warning-confirm]';
 export const FRIEND_TOOLTIP_SELECTOR = '[data-blackhole-friend-tooltip]';
-export const PLANET_PANEL_SELECTOR = '[data-blackhole-planet-panel]';
-export const PLANET_PANEL_CLOSE_SELECTOR = '[data-blackhole-planet-panel-close]';
+export const BODY_PANEL_SELECTOR = '[data-blackhole-body-panel]';
+export const BODY_PANEL_CLOSE_SELECTOR = '[data-blackhole-body-panel-close]';
 export const BLACKHOLE_BODY_CLASS = 'theme-blackhole';
 
 export type SceneName = 'home' | 'projects' | 'blog' | 'tools';
@@ -41,6 +43,8 @@ export type FriendPlanetOrbitProfile = {
   distance_unit?: string;
   period?: number;
   period_unit?: string;
+  parent_id?: string;
+  primary_mass?: FriendPlanetWeightProfile;
 };
 
 export type FriendPlanetWeightProfile = {
@@ -129,11 +133,50 @@ export type FriendPlanetProfile = {
   physics?: FriendPlanetPhysicsProfile;
 };
 
-export type FriendPlanet = {
+export type BodySourceProfile = {
+  width?: number;
+  height?: number;
+  radius?: number;
+  color?: string;
+  background?: string;
+  ring?: FriendPlanetRingProfile;
+  temperature?: FriendPlanetTemperatureProfile;
+  atmosphere?: FriendPlanetAtmosphereProfile;
+  orbit?: FriendPlanetOrbitProfile;
+  mass?: {
+    value?: number;
+    unit?: string;
+    scientific_notation?: string;
+  };
+  appearance?: FriendPlanetAppearanceProfile;
+  physics?: {
+    rotation_period?: number;
+    rotation_unit?: 'hours' | 'days' | 'seconds';
+    axial_tilt?: number;
+  };
+};
+
+export type BodySource = {
+  id?: string;
   name: string;
   url: string;
+  kind?: CelestialBodyKind;
   type: FriendPlanetType;
   description: string;
+  body?: BodySourceProfile;
+  planet?: FriendPlanetProfile;
+};
+
+export type BodySourceSetMap = Record<string, BodySource[]>;
+
+export type LegacyFriendPlanet = {
+  id?: string;
+  name: string;
+  url: string;
+  kind?: CelestialBodyKind;
+  type: FriendPlanetType;
+  description: string;
+  body?: BodySourceProfile;
   planet?: FriendPlanetProfile;
 };
 
@@ -162,7 +205,10 @@ export type SceneTarget = {
 };
 
 export type BlackholeWindow = Window & {
-  __BLACKHOLE_FRIEND_PLANETS__?: FriendPlanet[];
+  __BLACKHOLE_BODY_SOURCES__?: BodySource[];
+  __BLACKHOLE_BODY_SOURCE_SETS__?: BodySourceSetMap;
+  __BLACKHOLE_DEFAULT_BODY_SOURCE_SET__?: string;
+  __BLACKHOLE_ACTIVE_BODY_SOURCE_SET__?: string | null;
   __BLACKHOLE_DEMO_INITIALIZED__?: boolean;
   __BLACKHOLE_DEMO_REFRESH__?: () => void;
   __BLACKHOLE_DEMO_HOST__?: HTMLElement | null;
@@ -176,8 +222,8 @@ export type ControlBasis = {
   up: THREE.Vector3;
 };
 
-export type PlanetEntry = {
-  data: FriendPlanet;
+export type LegacyFriendPlanetRuntimeEntry = {
+  data: LegacyFriendPlanet;
   pivot: THREE.Group;
   anchor: THREE.Group;
   tiltGroup: THREE.Group;
@@ -198,6 +244,10 @@ export type PlanetEntry = {
   phase: number;
 };
 
+export type LegacyPlanetEntry = LegacyFriendPlanetRuntimeEntry;
+
+export type PlanetEntry = LegacyPlanetEntry;
+
 export type OrbitSceneTarget = {
   distance: number;
   fov: number;
@@ -210,7 +260,7 @@ export type OrbitSceneTarget = {
   bloomThreshold: number;
 };
 
-export type PlanetPanelElements = {
+export type BodyPanelElements = {
   panel: HTMLElement | null;
   close: HTMLButtonElement | null;
   type: HTMLElement | null;
@@ -233,7 +283,18 @@ export type PlanetPanelElements = {
   statTemperature: HTMLElement | null;
   statAtmosphere: HTMLElement | null;
   statOrbit: HTMLElement | null;
+  statOrbitParent: HTMLElement | null;
+  statOrbitSource: HTMLElement | null;
+  statHierarchy: HTMLElement | null;
   statWeight: HTMLElement | null;
+  statDensity: HTMLElement | null;
+  statGravity: HTMLElement | null;
+  statPhysics: HTMLElement | null;
+  statScaleRadius: HTMLElement | null;
+  statScaleOrbit: HTMLElement | null;
+  statScaleMotion: HTMLElement | null;
+  statInputState: HTMLElement | null;
+  statDerivedState: HTMLElement | null;
   statRotation: HTMLElement | null;
   statTilt: HTMLElement | null;
   statPoles: HTMLElement | null;
@@ -242,7 +303,15 @@ export type PlanetPanelElements = {
   statSurface: HTMLElement | null;
 };
 
-export type FriendTooltipElements = {
+export type LegacyPlanetPanelElements = BodyPanelElements;
+
+export type PlanetPanelElements = LegacyPlanetPanelElements;
+
+export type BodyTooltipElements = {
   root: HTMLElement | null;
   name: HTMLElement | null;
 };
+
+export type LegacyFriendTooltipElements = BodyTooltipElements;
+
+export type FriendTooltipElements = LegacyFriendTooltipElements;

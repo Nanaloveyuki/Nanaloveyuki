@@ -1,0 +1,335 @@
+[
+  {
+    "id": "example-blackhole",
+    "name": "Example Blackhole",
+    "url": "https://example.com/blackhole",
+    "kind": "blackhole",
+    "type": "hot",
+    "description": "示例黑洞：用于测试事件视界、吸积盘和黑洞详情文案。",
+    "body": {
+      "radius": 48,
+      "color": "#160b1f",
+      "background": "#07020b",
+      "ring": {
+        "is_show": true,
+        "inner_radius": 70,
+        "outer_radius": 140,
+        "color": "#ffb35c"
+      },
+      "temperature": {
+        "min": 1200,
+        "max": 4800,
+        "unit": "K"
+      },
+      "orbit": {
+        "is_show": true,
+        "distance_from_star": 18,
+        "distance_unit": "AU",
+        "primary_mass": {
+          "value": 4.1,
+          "unit": "kg",
+          "scientific_notation": "10**36"
+        }
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#120816",
+          "shadow_color": "#020103",
+          "terrain_scale": 1.2,
+          "terrain_contrast": 0.05
+        },
+        "atmosphere_visual": {
+          "is_show": true,
+          "color": "#ff9347",
+          "intensity": 0.98,
+          "rim_power": 1.1
+        },
+        "clouds": {
+          "is_show": false
+        },
+        "water": {
+          "is_show": false
+        }
+      },
+      "mass": {
+        "value": 4.1,
+        "unit": "kg",
+        "scientific_notation": "10**36"
+      }
+    }
+  },
+  {
+    "id": "example-star",
+    "name": "Example Star",
+    "url": "https://example.com/star",
+    "kind": "star",
+    "type": "hot",
+    "description": "示例恒星：用于测试高发光、高温与由父黑洞质量派生的轨道周期。",
+    "body": {
+      "radius": 696340,
+      "color": "#ffd27a",
+      "background": "#2a1205",
+      "temperature": {
+        "min": 5200,
+        "max": 6200,
+        "unit": "K"
+      },
+      "orbit": {
+        "is_show": true,
+        "distance_from_star": 24,
+        "distance_unit": "AU",
+        "parent_id": "example-blackhole"
+      },
+      "mass": {
+        "value": 1.988,
+        "unit": "kg",
+        "scientific_notation": "10**30"
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#ffcf84",
+          "shadow_color": "#9a4d12",
+          "terrain_scale": 2.4,
+          "terrain_contrast": 0.12
+        },
+        "atmosphere_visual": {
+          "is_show": true,
+          "color": "#ffe6ad",
+          "intensity": 0.92,
+          "rim_power": 1.6
+        },
+        "clouds": {
+          "is_show": false
+        },
+        "water": {
+          "is_show": false
+        }
+      },
+      "physics": {
+        "rotation_period": 609.12,
+        "rotation_unit": "hours",
+        "axial_tilt": 7.25
+      }
+    }
+  },
+  {
+    "id": "example-planet",
+    "name": "Example Planet",
+    "url": "https://example.com/planet",
+    "kind": "planet",
+    "type": "warm",
+    "description": "示例行星：用于测试围绕恒星的主行星、云层海洋预览和由父恒星质量派生的轨道周期。",
+    "body": {
+      "radius": 6371,
+      "color": "#5da7ff",
+      "background": "#071423",
+      "temperature": {
+        "min": 250,
+        "max": 320,
+        "unit": "K"
+      },
+      "atmosphere": {
+        "is_show": true,
+        "composition": "N2 / O2",
+        "pressure": 1,
+        "pressure_unit": "atm"
+      },
+      "orbit": {
+        "is_show": true,
+        "distance_from_star": 1.6,
+        "distance_unit": "AU",
+        "parent_id": "example-star"
+      },
+      "mass": {
+        "value": 5.972,
+        "unit": "kg",
+        "scientific_notation": "10**24"
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#5ea6ff",
+          "shadow_color": "#102f58",
+          "terrain_scale": 6.2,
+          "terrain_contrast": 0.38
+        },
+        "water": {
+          "is_show": true,
+          "color": "#80c1ff",
+          "coverage": 0.58,
+          "gloss": 0.82
+        },
+        "land": {
+          "color": "#4aa078",
+          "secondary_color": "#8fd0a5",
+          "coverage": 0.42
+        },
+        "clouds": {
+          "is_show": true,
+          "color": "#eff7ff",
+          "opacity": 0.24,
+          "coverage": 0.46,
+          "speed": 0.16
+        },
+        "atmosphere_visual": {
+          "is_show": true,
+          "color": "#bedfff",
+          "intensity": 0.72,
+          "rim_power": 2.5
+        },
+        "poles": {
+          "is_show": true,
+          "color": "#eaf3ff",
+          "size": 0.14
+        },
+        "equator": {
+          "is_show": true,
+          "color": "#8dc2ff",
+          "width": 0.08,
+          "intensity": 0.28
+        }
+      },
+      "physics": {
+        "rotation_period": 22,
+        "rotation_unit": "hours",
+        "axial_tilt": 18.4
+      }
+    }
+  },
+  {
+    "id": "example-moon",
+    "name": "Example Moon",
+    "url": "https://example.com/moon",
+    "kind": "moon",
+    "type": "cold",
+    "description": "示例卫星：用于测试围绕行星的子层级轨道、起伏表面和月球类面板描述。",
+    "body": {
+      "radius": 1737,
+      "color": "#cfd4dd",
+      "background": "#10141d",
+      "temperature": {
+        "min": 90,
+        "max": 250,
+        "unit": "K"
+      },
+      "orbit": {
+        "is_show": true,
+        "distance_from_star": 384400,
+        "distance_unit": "km",
+        "parent_id": "example-planet"
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#cfd4dd",
+          "shadow_color": "#5f6671",
+          "terrain_scale": 9.2,
+          "terrain_contrast": 0.58
+        },
+        "clouds": {
+          "is_show": false
+        },
+        "water": {
+          "is_show": false
+        },
+        "poles": {
+          "is_show": false
+        },
+        "equator": {
+          "is_show": false
+        }
+      }
+    }
+  },
+  {
+    "id": "example-asteroid",
+    "name": "Example Asteroid",
+    "url": "https://example.com/asteroid",
+    "kind": "asteroid",
+    "type": "cool",
+    "description": "示例小行星：用于测试与主行星同属一颗恒星时的不规则几何和弱发光材质。",
+    "body": {
+      "radius": 320,
+      "color": "#897969",
+      "background": "#120f12",
+      "orbit": {
+        "is_show": true,
+        "distance_from_star": 4.4,
+        "distance_unit": "AU",
+        "parent_id": "example-star"
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#8f7b63",
+          "shadow_color": "#3e332b",
+          "terrain_scale": 10.8,
+          "terrain_contrast": 0.72
+        },
+        "clouds": {
+          "is_show": false
+        },
+        "water": {
+          "is_show": false
+        },
+        "poles": {
+          "is_show": false
+        },
+        "equator": {
+          "is_show": false
+        }
+      },
+      "physics": {
+        "rotation_period": 8.6,
+        "rotation_unit": "hours",
+        "axial_tilt": 31.0
+      }
+    }
+  },
+  {
+    "id": "example-ring-system",
+    "name": "Example Ring System",
+    "url": "https://example.com/ring-system",
+    "kind": "ring-system",
+    "type": "cool",
+    "description": "示例环系天体：用于测试围绕同一恒星运行时强调光环而非纯球体中心的表现。",
+    "body": {
+      "radius": 26000,
+      "color": "#d9c79c",
+      "background": "#1a1822",
+      "orbit": {
+        "is_show": true,
+        "distance_from_star": 7.8,
+        "distance_unit": "AU",
+        "parent_id": "example-star"
+      },
+      "ring": {
+        "is_show": true,
+        "inner_radius": 34000,
+        "outer_radius": 62000,
+        "color": "#f0e4be"
+      },
+      "appearance": {
+        "surface": {
+          "base_color": "#d9c79c",
+          "shadow_color": "#6f5f41",
+          "terrain_scale": 3.4,
+          "terrain_contrast": 0.18
+        },
+        "clouds": {
+          "is_show": true,
+          "color": "#fff7de",
+          "opacity": 0.16,
+          "coverage": 0.3,
+          "speed": 0.08
+        },
+        "water": {
+          "is_show": false
+        },
+        "equator": {
+          "is_show": true,
+          "color": "#f3e3a9",
+          "width": 0.15,
+          "intensity": 0.42
+        }
+      }
+    }
+  }
+]

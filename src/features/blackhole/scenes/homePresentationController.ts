@@ -4,7 +4,9 @@ import { CameraDragControls, KeyboardMoveControls } from '@blackhole/core/contro
 import { Observer } from '@blackhole/core/observer';
 import { clamp } from '@blackhole/math';
 import { getMinimumHomeDistance, lerpAngle } from '@blackhole/scenes/homeSceneMath';
-import type { PlanetEntry, SceneTarget } from '@blackhole/types';
+import type { SceneTarget } from '@blackhole/types';
+
+import type { BodyEntry } from '@blackhole/systems/bodies/bodyTypes';
 
 type HomePresentationControllerParams = {
   delta: number;
@@ -18,10 +20,10 @@ type HomePresentationControllerParams = {
   moveAnchor: THREE.Vector3;
   cameraControl: CameraDragControls;
   keyboardMoveControl: KeyboardMoveControls;
-  friendPlanets: PlanetEntry[];
-  focusPlanetEntry: PlanetEntry | null;
-  openPlanetInspection: (planetEntry: PlanetEntry) => void;
-  syncPlanetDetailResolution: () => void;
+  bodyEntries: BodyEntry[];
+  focusBodyEntry: BodyEntry | null;
+  openBodyInspection: (bodyEntry: BodyEntry) => void;
+  syncBodyDetailResolution: () => void;
   cameraDistance: number;
 };
 
@@ -57,11 +59,11 @@ export const createHomePresentationController = () => {
   const upVector = new THREE.Vector3();
   const cameraLookTarget = new THREE.Vector3();
   const homeCenterDirection = new THREE.Vector3();
-  const focusPlanetPosition = new THREE.Vector3();
+  const focusBodyPosition = new THREE.Vector3();
   const focusOutward = new THREE.Vector3();
   const focusDesiredPosition = new THREE.Vector3();
   const focusDesiredForward = new THREE.Vector3();
-  const worldPlanetPosition = new THREE.Vector3();
+  const worldBodyPosition = new THREE.Vector3();
   const pushDirection = new THREE.Vector3();
 
   const update = ({
@@ -76,19 +78,19 @@ export const createHomePresentationController = () => {
     moveAnchor,
     cameraControl,
     keyboardMoveControl,
-    friendPlanets,
-    focusPlanetEntry,
-    openPlanetInspection,
-    syncPlanetDetailResolution,
+    bodyEntries,
+    focusBodyEntry,
+    openBodyInspection,
+    syncBodyDetailResolution,
     cameraDistance,
   }: HomePresentationControllerParams) => {
     homeBasePosition.copy(homeBaseDirection).multiplyScalar(cameraDistance);
 
-    let activeFocusPlanetEntry = focusPlanetEntry;
-    const isPlanetFocusTransitionActive = activeFocusPlanetEntry !== null;
+    let activeFocusBodyEntry = focusBodyEntry;
+    const isBodyFocusTransitionActive = activeFocusBodyEntry !== null;
     const homeLockProgress = clamp(target.dragRecenter / 0.18, 0, 1);
 
-    cameraControl.setEnabled(target.dragEnabled && !isPlanetFocusTransitionActive);
+    cameraControl.setEnabled(target.dragEnabled && !isBodyFocusTransitionActive);
     cameraControl.update(0);
     syncHomeCameraBasis(cameraControl, worldUp, homeForward, right, upVector);
 
@@ -96,7 +98,7 @@ export const createHomePresentationController = () => {
     keyboardMoveControl.update(
       delta,
       currentCameraPosition.length(),
-      target.keyboardEnabled && !isPlanetFocusTransitionActive,
+      target.keyboardEnabled && !isBodyFocusTransitionActive,
       target.keyboardRecenter,
       {
         forward: homeForward,
@@ -106,36 +108,36 @@ export const createHomePresentationController = () => {
     );
 
     currentCameraPosition.copy(homeBasePosition).add(keyboardMoveControl.offset);
-    friendPlanets.forEach((planetEntry) => {
-      planetEntry.mesh.getWorldPosition(worldPlanetPosition);
+    bodyEntries.forEach((bodyEntry) => {
+      bodyEntry.mesh.getWorldPosition(worldBodyPosition);
 
-      const minimumDistance = planetEntry.radius + 0.72;
-      const distanceToPlanet = currentCameraPosition.distanceTo(worldPlanetPosition);
+      const minimumDistance = bodyEntry.radius + 0.72;
+      const distanceToBody = currentCameraPosition.distanceTo(worldBodyPosition);
 
-      if (distanceToPlanet >= minimumDistance) {
+      if (distanceToBody >= minimumDistance) {
         return;
       }
 
-      pushDirection.copy(currentCameraPosition).sub(worldPlanetPosition);
+      pushDirection.copy(currentCameraPosition).sub(worldBodyPosition);
       if (pushDirection.lengthSq() <= 1e-6) {
         pushDirection.copy(homeForward).negate();
       }
 
       pushDirection.normalize();
       currentCameraPosition.copy(
-        worldPlanetPosition.add(pushDirection.multiplyScalar(minimumDistance)),
+        worldBodyPosition.add(pushDirection.multiplyScalar(minimumDistance)),
       );
       keyboardMoveControl.velocity.multiplyScalar(0.24);
-      openPlanetInspection(planetEntry);
-      activeFocusPlanetEntry = planetEntry;
+      openBodyInspection(bodyEntry);
+      activeFocusBodyEntry = bodyEntry;
     });
 
-    if (activeFocusPlanetEntry) {
+    if (activeFocusBodyEntry) {
       const focusBlend = clamp(1 - Math.exp(-delta * 4.6), 0.08, 0.24);
-      const focusDistance = clamp(activeFocusPlanetEntry.radius * 2.9 + 0.64, 1.2, 2.2);
+      const focusDistance = clamp(activeFocusBodyEntry.radius * 2.9 + 0.64, 1.2, 2.2);
 
-      activeFocusPlanetEntry.mesh.getWorldPosition(focusPlanetPosition);
-      focusOutward.copy(focusPlanetPosition);
+      activeFocusBodyEntry.mesh.getWorldPosition(focusBodyPosition);
+      focusOutward.copy(focusBodyPosition);
 
       if (focusOutward.lengthSq() <= 1e-6) {
         focusOutward.copy(homeForward).negate();
@@ -144,14 +146,14 @@ export const createHomePresentationController = () => {
       }
 
       focusDesiredPosition
-        .copy(focusPlanetPosition)
+        .copy(focusBodyPosition)
         .addScaledVector(focusOutward, focusDistance)
-        .addScaledVector(worldUp, Math.max(0.08, activeFocusPlanetEntry.radius * 0.2));
+        .addScaledVector(worldUp, Math.max(0.08, activeFocusBodyEntry.radius * 0.2));
 
       currentCameraPosition.lerp(focusDesiredPosition, focusBlend);
       keyboardMoveControl.velocity.multiplyScalar(0.72);
 
-      focusDesiredForward.copy(focusPlanetPosition).sub(currentCameraPosition);
+      focusDesiredForward.copy(focusBodyPosition).sub(currentCameraPosition);
       if (focusDesiredForward.lengthSq() > 1e-6) {
         focusDesiredForward.normalize();
         cameraControl.yaw = lerpAngle(
@@ -170,7 +172,7 @@ export const createHomePresentationController = () => {
         currentCameraPosition.distanceToSquared(focusDesiredPosition) <= 0.01 &&
         focusDesiredForward.angleTo(homeForward) <= 0.04
       ) {
-        activeFocusPlanetEntry = null;
+        activeFocusBodyEntry = null;
       }
     } else if (homeLockProgress > 0) {
       const positionLockBlend = clamp(
@@ -193,7 +195,7 @@ export const createHomePresentationController = () => {
       }
     }
 
-    if (!isPlanetFocusTransitionActive && !cameraControl.isCapturing && target.dragRecenter > 0) {
+    if (!isBodyFocusTransitionActive && !cameraControl.isCapturing && target.dragRecenter > 0) {
       homeCenterDirection.copy(origin).sub(currentCameraPosition);
 
       if (homeCenterDirection.lengthSq() > 1e-6) {
@@ -223,13 +225,13 @@ export const createHomePresentationController = () => {
     cameraLookTarget.copy(observer.position).add(observer.direction);
     observer.lookAt(cameraLookTarget);
     observer.updateMatrixWorld();
-    syncPlanetDetailResolution();
+    syncBodyDetailResolution();
 
     moveAnchor.copy(keyboardMoveControl.offset);
     pageHost?.style.setProperty('--story-reveal', target.storyReveal.toFixed(4));
     pageHost?.style.setProperty('--risk-visibility', target.riskVisibility.toFixed(4));
 
-    return activeFocusPlanetEntry;
+    return activeFocusBodyEntry;
   };
 
   return {

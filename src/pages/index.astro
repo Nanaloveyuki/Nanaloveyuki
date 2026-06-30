@@ -1,13 +1,14 @@
 ---
 import BlackholeScene from '@blackhole/BlackholeScene.astro';
 import { getPublishedBlogEntries } from '@data/blog';
-import { getFriendPlanets } from '@data/friends';
+import { getBodySourceSets } from '@data/bodySources';
 import { projects } from '@data/projects';
 import { profile } from '@data/site';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 
 const pageTitle = profile.name;
-const friends = await getFriendPlanets();
+const bodySourceSets = await getBodySourceSets();
+const bodySources = bodySourceSets.default ?? [];
 const latestPosts = (await getPublishedBlogEntries()).slice(0, 5);
 
 const aboutParagraphs = [
@@ -24,7 +25,8 @@ const aboutParagraphs = [
   bodyClass="theme-blackhole"
   showFooter={false}
   blackholeMode="home"
-  friendPlanets={friends}
+  bodySources={bodySources}
+  bodySourceSets={bodySourceSets}
 >
   <BlackholeScene
     scene="home"
@@ -85,12 +87,17 @@ const aboutParagraphs = [
         <p>每一个友联都会成为环绕黑洞运行的一颗星球，性格类型决定它的地貌与温度。</p>
         <ul class="blackhole-friend-list" aria-label="友联列表">
           {
-            friends.map((friend) => (
+            bodySources.map((bodySource) => (
               <li>
-                <a class="blackhole-list-link" href={friend.url} target="_blank" rel="noreferrer">
-                  {friend.name}
+                <a
+                  class="blackhole-list-link"
+                  href={bodySource.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {bodySource.name}
                 </a>
-                <small>{friend.type}</small>
+                <small>{bodySource.type}</small>
               </li>
             ))
           }

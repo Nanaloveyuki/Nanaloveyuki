@@ -1,45 +1,43 @@
-import type {
-  LegacyFriendTooltipElements,
-  LegacyFriendPlanet,
-  LegacyPlanetPanelElements,
-} from '@blackhole/types';
+import type { BodyPanelElements, BodyTooltipElements } from '@blackhole/types';
 
-import { renderPlanetPanel } from './planetDetails';
+import { renderBodyPanel } from './bodyDetails';
+import type { BodyPresentationSource } from './bodyPresentation';
+import type { BodyEntry } from './bodyTypes';
 
-export type LegacyPlanetDomBridge = {
+export type BodyDomBridge = {
   closePanel: () => void;
-  openPanel: (legacyFriend: LegacyFriendPlanet) => void;
+  openPanel: (bodyEntry: BodyEntry) => void;
   syncTooltip: (
-    legacyFriend: LegacyFriendPlanet | null,
+    presentation: BodyPresentationSource | null,
     clientX?: number,
     clientY?: number,
   ) => void;
   clearTooltip: () => void;
 };
 
-export type CreateLegacyPlanetDomBridgeParams = {
-  panel: LegacyPlanetPanelElements;
-  tooltip: LegacyFriendTooltipElements;
+export type CreateBodyDomBridgeParams = {
+  panel: BodyPanelElements;
+  tooltip: BodyTooltipElements;
   onPanelClose?: () => void;
 };
 
-export const createLegacyPlanetDomBridge = ({
+export const createBodyDomBridge = ({
   panel,
   tooltip,
   onPanelClose,
-}: CreateLegacyPlanetDomBridgeParams): LegacyPlanetDomBridge => {
+}: CreateBodyDomBridgeParams): BodyDomBridge => {
   const closePanel = () => {
     panel.panel?.setAttribute('hidden', '');
     panel.panel?.removeAttribute('data-active-planet');
     onPanelClose?.();
   };
 
-  const openPanel = (legacyFriend: LegacyFriendPlanet) => {
+  const openPanel = (bodyEntry: BodyEntry) => {
     if (!panel.panel) {
       return;
     }
 
-    renderPlanetPanel(panel, legacyFriend);
+    renderBodyPanel(panel, bodyEntry);
   };
 
   const clearTooltip = () => {
@@ -47,17 +45,17 @@ export const createLegacyPlanetDomBridge = ({
   };
 
   const syncTooltip = (
-    legacyFriend: LegacyFriendPlanet | null,
+    presentation: BodyPresentationSource | null,
     clientX?: number,
     clientY?: number,
   ) => {
-    if (!tooltip.root || !legacyFriend) {
+    if (!tooltip.root || !presentation) {
       clearTooltip();
       return;
     }
 
     if (tooltip.name) {
-      tooltip.name.textContent = legacyFriend.name;
+      tooltip.name.textContent = presentation.name;
     }
 
     if (typeof clientX !== 'number' || typeof clientY !== 'number') {
@@ -78,7 +76,3 @@ export const createLegacyPlanetDomBridge = ({
     clearTooltip,
   };
 };
-
-export type PlanetDomBridge = LegacyPlanetDomBridge;
-export type CreatePlanetDomBridgeParams = CreateLegacyPlanetDomBridgeParams;
-export const createPlanetDomBridge = createLegacyPlanetDomBridge;

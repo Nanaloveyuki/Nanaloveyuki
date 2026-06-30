@@ -1,9 +1,11 @@
 {
+  "id": "snowykami",
   "name": "Snowykami",
   "url": "https://sfkm.me",
+  "kind": "planet",
   "type": "warm",
   "description": "古希腊掌管轻雪的神",
-  "planet": {
+  "body": {
     "width": 512,
     "height": 512,
     "radius": 7820,
@@ -38,13 +40,18 @@
       "is_show": true,
       "distance_from_star": 12.0,
       "distance_unit": "AU",
+      "primary_mass": {
+        "value": 4.1,
+        "unit": "kg",
+        "scientific_notation": "10**36"
+      },
       "distance_unit_comment": "只接受 AU (天文单位) 和 km (千米)",
       "period": 412,
       "period_unit": "days",
       "period_unit_comment": "只接受 days (天) 和 years (年)",
       "comment": "这里是行星的轨道信息，包括距离和周期"
     },
-    "weight": {
+    "mass": {
       "value": 6.84,
       "unit": "kg",
       "scientific_notation": "10**24"
@@ -93,7 +100,7 @@
       }
     },
     "physics": {
-      "rotation_speed": 17.2,
+      "rotation_period": 17.2,
       "rotation_unit": "hours",
       "axial_tilt": 21.4
     }

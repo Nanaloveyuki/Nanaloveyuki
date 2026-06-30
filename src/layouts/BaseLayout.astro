@@ -6,7 +6,7 @@ import '@fontsource/noto-sans-sc/500.css';
 import '@fontsource/noto-sans-sc/700.css';
 import '@/styles/global.css';
 import { navLinks, profile, socialLinks } from '@data/site';
-import type { FriendPlanet } from '@blackhole/types';
+import type { BodySource, BodySourceSetMap } from '@blackhole/types';
 
 type Props = {
   title: string;
@@ -15,7 +15,8 @@ type Props = {
   bodyClass?: string;
   showFooter?: boolean;
   blackholeMode?: 'none' | 'home' | 'orbit';
-  friendPlanets?: FriendPlanet[];
+  bodySources?: BodySource[];
+  bodySourceSets?: BodySourceSetMap;
 };
 
 const {
@@ -25,7 +26,8 @@ const {
   bodyClass = '',
   showFooter = true,
   blackholeMode = 'none',
-  friendPlanets = [],
+  bodySources = [],
+  bodySourceSets = {},
 } = Astro.props;
 const basePath = import.meta.env.BASE_URL;
 const assetBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
@@ -84,126 +86,175 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
             <p class="blackhole-friend-tooltip-name" data-blackhole-friend-tooltip-name />
           </div>
 
-          <aside class="blackhole-planet-panel" data-blackhole-planet-panel hidden>
-            <div class="blackhole-planet-panel-card shell">
-              <div class="blackhole-planet-panel-header">
+          <aside class="blackhole-body-set-debug" data-blackhole-body-set-debug hidden>
+            <p class="blackhole-body-set-debug-label">Debug Body Set</p>
+            <div class="blackhole-body-set-debug-meta">
+              <strong data-blackhole-body-set-debug-value>default</strong>
+              <span data-blackhole-body-set-debug-count>0 bodies</span>
+            </div>
+          </aside>
+
+          <aside class="blackhole-body-panel" data-blackhole-body-panel hidden>
+            <div class="blackhole-body-panel-card shell">
+              <div class="blackhole-body-panel-header">
                 <div>
-                  <p class="blackhole-planet-panel-type" data-blackhole-planet-panel-type />
-                  <h3 class="blackhole-planet-panel-name" data-blackhole-planet-panel-name />
+                  <p class="blackhole-body-panel-type" data-blackhole-body-panel-type />
+                  <h3 class="blackhole-body-panel-name" data-blackhole-body-panel-name />
                 </div>
                 <button
                   type="button"
-                  class="blackhole-planet-panel-close"
-                  data-blackhole-planet-panel-close
+                  class="blackhole-body-panel-close"
+                  data-blackhole-body-panel-close
                   aria-label="关闭星球概览"
                 >
                   ×
                 </button>
               </div>
 
-              <div class="blackhole-planet-panel-preview" data-blackhole-planet-panel-preview>
-                <div class="blackhole-planet-panel-preview-orbit" aria-hidden="true">
+              <div class="blackhole-body-panel-preview" data-blackhole-body-panel-preview>
+                <div class="blackhole-body-panel-preview-orbit" aria-hidden="true">
                   <div
-                    class="blackhole-planet-panel-preview-atmosphere"
-                    data-blackhole-planet-panel-preview-atmosphere
+                    class="blackhole-body-panel-preview-atmosphere"
+                    data-blackhole-body-panel-preview-atmosphere
                   >
                     <div
-                      class="blackhole-planet-panel-preview-clouds"
-                      data-blackhole-planet-panel-preview-clouds
+                      class="blackhole-body-panel-preview-clouds"
+                      data-blackhole-body-panel-preview-clouds
                     />
                     <div
-                      class="blackhole-planet-panel-preview-planet"
-                      data-blackhole-planet-panel-preview-planet
+                      class="blackhole-body-panel-preview-planet"
+                      data-blackhole-body-panel-preview-planet
                     >
                       <div
-                        class="blackhole-planet-panel-preview-water"
-                        data-blackhole-planet-panel-preview-water
+                        class="blackhole-body-panel-preview-water"
+                        data-blackhole-body-panel-preview-water
                       />
                       <div
-                        class="blackhole-planet-panel-preview-land"
-                        data-blackhole-planet-panel-preview-land
+                        class="blackhole-body-panel-preview-land"
+                        data-blackhole-body-panel-preview-land
                       />
                       <div
-                        class="blackhole-planet-panel-preview-equator"
-                        data-blackhole-planet-panel-preview-equator
+                        class="blackhole-body-panel-preview-equator"
+                        data-blackhole-body-panel-preview-equator
                       />
                       <div
-                        class="blackhole-planet-panel-preview-pole is-north"
-                        data-blackhole-planet-panel-preview-pole-north
+                        class="blackhole-body-panel-preview-pole is-north"
+                        data-blackhole-body-panel-preview-pole-north
                       />
                       <div
-                        class="blackhole-planet-panel-preview-pole is-south"
-                        data-blackhole-planet-panel-preview-pole-south
+                        class="blackhole-body-panel-preview-pole is-south"
+                        data-blackhole-body-panel-preview-pole-south
                       />
                     </div>
                     <div
-                      class="blackhole-planet-panel-preview-ring"
-                      data-blackhole-planet-panel-preview-ring
+                      class="blackhole-body-panel-preview-ring"
+                      data-blackhole-body-panel-preview-ring
                     />
                   </div>
                 </div>
-                <p data-blackhole-planet-panel-preview-copy>Planet Overview</p>
+                <p data-blackhole-body-panel-preview-copy>Planet Overview</p>
               </div>
 
-              <p
-                class="blackhole-planet-panel-description"
-                data-blackhole-planet-panel-description
-              />
+              <p class="blackhole-body-panel-description" data-blackhole-body-panel-description />
 
-              <dl class="blackhole-planet-panel-stats">
+              <dl class="blackhole-body-panel-stats">
                 <div>
                   <dt>性格类型</dt>
-                  <dd data-blackhole-planet-panel-stat-type />
+                  <dd data-blackhole-body-panel-stat-type />
                 </div>
                 <div>
                   <dt>半径</dt>
-                  <dd data-blackhole-planet-panel-stat-radius />
+                  <dd data-blackhole-body-panel-stat-radius />
                 </div>
                 <div>
                   <dt>温度</dt>
-                  <dd data-blackhole-planet-panel-stat-temperature />
+                  <dd data-blackhole-body-panel-stat-temperature />
                 </div>
                 <div>
                   <dt>大气</dt>
-                  <dd data-blackhole-planet-panel-stat-atmosphere />
+                  <dd data-blackhole-body-panel-stat-atmosphere />
                 </div>
                 <div>
                   <dt>轨道</dt>
-                  <dd data-blackhole-planet-panel-stat-orbit />
+                  <dd data-blackhole-body-panel-stat-orbit />
+                </div>
+                <div>
+                  <dt>父体</dt>
+                  <dd data-blackhole-body-panel-stat-orbit-parent />
+                </div>
+                <div>
+                  <dt>轨道来源</dt>
+                  <dd data-blackhole-body-panel-stat-orbit-source />
+                </div>
+                <div>
+                  <dt>层级状态</dt>
+                  <dd data-blackhole-body-panel-stat-hierarchy />
                 </div>
                 <div>
                   <dt>质量</dt>
-                  <dd data-blackhole-planet-panel-stat-weight />
+                  <dd data-blackhole-body-panel-stat-weight />
+                </div>
+                <div>
+                  <dt>密度</dt>
+                  <dd data-blackhole-body-panel-stat-density />
+                </div>
+                <div>
+                  <dt>重力</dt>
+                  <dd data-blackhole-body-panel-stat-gravity />
+                </div>
+                <div>
+                  <dt>物理观测</dt>
+                  <dd data-blackhole-body-panel-stat-physics />
+                </div>
+                <div>
+                  <dt>尺寸映射</dt>
+                  <dd data-blackhole-body-panel-stat-scale-radius />
+                </div>
+                <div>
+                  <dt>轨道映射</dt>
+                  <dd data-blackhole-body-panel-stat-scale-orbit />
+                </div>
+                <div>
+                  <dt>动画映射</dt>
+                  <dd data-blackhole-body-panel-stat-scale-motion />
+                </div>
+                <div>
+                  <dt>输入状态</dt>
+                  <dd data-blackhole-body-panel-stat-input-state />
+                </div>
+                <div>
+                  <dt>派生状态</dt>
+                  <dd data-blackhole-body-panel-stat-derived-state />
                 </div>
                 <div>
                   <dt>自转</dt>
-                  <dd data-blackhole-planet-panel-stat-rotation />
+                  <dd data-blackhole-body-panel-stat-rotation />
                 </div>
                 <div>
                   <dt>自倾角</dt>
-                  <dd data-blackhole-planet-panel-stat-tilt />
+                  <dd data-blackhole-body-panel-stat-tilt />
                 </div>
                 <div>
                   <dt>极地</dt>
-                  <dd data-blackhole-planet-panel-stat-poles />
+                  <dd data-blackhole-body-panel-stat-poles />
                 </div>
                 <div>
                   <dt>赤道</dt>
-                  <dd data-blackhole-planet-panel-stat-equator />
+                  <dd data-blackhole-body-panel-stat-equator />
                 </div>
                 <div>
                   <dt>云层</dt>
-                  <dd data-blackhole-planet-panel-stat-clouds />
+                  <dd data-blackhole-body-panel-stat-clouds />
                 </div>
                 <div>
                   <dt>地表</dt>
-                  <dd data-blackhole-planet-panel-stat-surface />
+                  <dd data-blackhole-body-panel-stat-surface />
                 </div>
               </dl>
 
               <a
-                class="blackhole-planet-panel-link"
-                data-blackhole-planet-panel-link
+                class="blackhole-body-panel-link"
+                data-blackhole-body-panel-link
                 href="#"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -287,8 +338,9 @@ const useBlackholeShell = bodyClass.split(' ').includes('theme-blackhole');
           </script>
 
           {blackholeMode === 'home' && (
-            <script define:vars={{ friendPlanets }} is:inline>
-              window.__BLACKHOLE_FRIEND_PLANETS__ = friendPlanets;
+            <script define:vars={{ bodySources, bodySourceSets }} is:inline>
+              window.__BLACKHOLE_BODY_SOURCES__ = bodySources; window.__BLACKHOLE_BODY_SOURCE_SETS__
+              = bodySourceSets; window.__BLACKHOLE_DEFAULT_BODY_SOURCE_SET__ = 'default';
             </script>
           )}
 

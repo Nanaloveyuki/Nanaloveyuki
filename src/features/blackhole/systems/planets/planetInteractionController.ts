@@ -2,23 +2,23 @@ import * as THREE from 'three';
 
 import { KeyboardMoveControls } from '@blackhole/core/controls';
 import type { Observer } from '@blackhole/core/observer';
-import type { PerformanceConfig, PlanetEntry, SceneName } from '@blackhole/types';
+import type { LegacyPlanetEntry, PerformanceConfig, SceneName } from '@blackhole/types';
 
-import type { PlanetDomBridge } from './planetDomBridge';
+import type { LegacyPlanetDomBridge } from './planetDomBridge';
 
-export type PlanetInteractionController = {
+export type LegacyPlanetInteractionController = {
   syncDetailResolution: () => void;
   closeInspection: () => void;
-  setSelectedPlanet: (planetEntry: PlanetEntry | null) => void;
+  setSelectedPlanet: (planetEntry: LegacyPlanetEntry | null) => void;
   closePanel: () => void;
-  openInspection: (planetEntry: PlanetEntry) => void;
-  getSelectedPlanet: () => PlanetEntry | null;
-  getFocusPlanet: () => PlanetEntry | null;
-  setFocusPlanet: (planetEntry: PlanetEntry | null) => void;
+  openInspection: (planetEntry: LegacyPlanetEntry) => void;
+  getSelectedPlanet: () => LegacyPlanetEntry | null;
+  getFocusPlanet: () => LegacyPlanetEntry | null;
+  setFocusPlanet: (planetEntry: LegacyPlanetEntry | null) => void;
 };
 
-type CreatePlanetInteractionControllerParams = {
-  planetDomBridge: PlanetDomBridge;
+type CreateLegacyPlanetInteractionControllerParams = {
+  planetDomBridge: LegacyPlanetDomBridge;
   keyboardMoveControl: KeyboardMoveControls;
   observer: Observer;
   performanceConfig: PerformanceConfig;
@@ -28,7 +28,7 @@ type CreatePlanetInteractionControllerParams = {
   onDetailResolutionBoostChange: () => void;
 };
 
-export const createPlanetInteractionController = ({
+export const createLegacyPlanetInteractionController = ({
   planetDomBridge,
   keyboardMoveControl,
   observer,
@@ -37,10 +37,10 @@ export const createPlanetInteractionController = ({
   getDetailResolutionBoost,
   setDetailResolutionBoost,
   onDetailResolutionBoostChange,
-}: CreatePlanetInteractionControllerParams): PlanetInteractionController => {
-  let selectedPlanetEntry: PlanetEntry | null = null;
-  let detailPlanetEntry: PlanetEntry | null = null;
-  let focusPlanetEntry: PlanetEntry | null = null;
+}: CreateLegacyPlanetInteractionControllerParams): LegacyPlanetInteractionController => {
+  let selectedPlanetEntry: LegacyPlanetEntry | null = null;
+  let detailPlanetEntry: LegacyPlanetEntry | null = null;
+  let focusPlanetEntry: LegacyPlanetEntry | null = null;
   const inspectionPosition = new THREE.Vector3();
 
   const syncDetailResolution = () => {
@@ -71,7 +71,7 @@ export const createPlanetInteractionController = ({
     syncDetailResolution();
   };
 
-  const setSelectedPlanet = (planetEntry: PlanetEntry | null) => {
+  const setSelectedPlanet = (planetEntry: LegacyPlanetEntry | null) => {
     if (selectedPlanetEntry === planetEntry) {
       return;
     }
@@ -90,7 +90,7 @@ export const createPlanetInteractionController = ({
     planetDomBridge.closePanel();
   };
 
-  const openInspection = (planetEntry: PlanetEntry) => {
+  const openInspection = (planetEntry: LegacyPlanetEntry) => {
     setSelectedPlanet(planetEntry);
     detailPlanetEntry = planetEntry;
     focusPlanetEntry = planetEntry;
@@ -99,7 +99,7 @@ export const createPlanetInteractionController = ({
     syncDetailResolution();
   };
 
-  const setFocusPlanet = (planetEntry: PlanetEntry | null) => {
+  const setFocusPlanet = (planetEntry: LegacyPlanetEntry | null) => {
     if (focusPlanetEntry === planetEntry) {
       return;
     }
@@ -119,3 +119,7 @@ export const createPlanetInteractionController = ({
     setFocusPlanet,
   };
 };
+
+export type PlanetInteractionController = LegacyPlanetInteractionController;
+export type CreatePlanetInteractionControllerParams = CreateLegacyPlanetInteractionControllerParams;
+export const createPlanetInteractionController = createLegacyPlanetInteractionController;

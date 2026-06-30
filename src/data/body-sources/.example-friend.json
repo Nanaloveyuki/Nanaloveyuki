@@ -2,9 +2,11 @@
   {
     "name": "Snowykami",
     "url": "https://sfkm.me",
+    "kind": "planet",
+    "kind_comment": "支持的值包括 planet、star、moon、asteroid、blackhole、ring-system",
     "type": "warm",
     "description": "示例友联数据，可按需替换为真实站点信息。",
-    "planet": {
+    "body": {
       "width": 100,
       "height": 100,
       "radius": 50,
@@ -45,7 +47,7 @@
         "period_unit_comment": "只接受 days (天) 和 years (年)",
         "comment": "这里是行星的轨道信息，包括距离和周期"
       },
-      "weight": {
+      "mass": {
         "value": 5.972,
         "unit": "kg",
         "scientific_notation": "10**24"
@@ -95,7 +97,7 @@
         }
       },
       "physics": {
-        "rotation_speed": 16.4,
+        "rotation_period": 16.4,
         "rotation_unit": "hours",
         "axial_tilt": 19.7
       }

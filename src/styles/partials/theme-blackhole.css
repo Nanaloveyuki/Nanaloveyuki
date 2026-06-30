@@ -229,11 +229,61 @@ body.theme-stars .site-nav a.is-active {
   white-space: nowrap;
 }
 
-.blackhole-planet-panel[hidden] {
+.blackhole-body-set-debug[hidden] {
   display: none;
 }
 
-.blackhole-planet-panel {
+.blackhole-body-set-debug {
+  position: fixed;
+  top: 5.25rem;
+  right: 1.25rem;
+  z-index: 12;
+  min-width: 12rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  background: rgba(7, 10, 16, 0.82);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(14px);
+}
+
+.blackhole-body-set-debug-label,
+.blackhole-body-set-debug-meta {
+  margin: 0;
+}
+
+.blackhole-body-set-debug-label {
+  color: rgba(255, 239, 214, 0.58);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.blackhole-body-set-debug-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+}
+
+.blackhole-body-set-debug-value {
+  color: #f8f2eb;
+  font-family: 'Fraunces', 'Noto Serif SC', serif;
+  font-size: 1rem;
+}
+
+.blackhole-body-set-debug-count {
+  color: rgba(248, 242, 235, 0.72);
+  font-size: 0.78rem;
+}
+
+.blackhole-body-panel[hidden] {
+  display: none;
+}
+
+.blackhole-body-panel {
   position: fixed;
   right: 1.25rem;
   bottom: 1.25rem;
@@ -241,7 +291,7 @@ body.theme-stars .site-nav a.is-active {
   width: min(24rem, calc(100vw - 2rem));
 }
 
-.blackhole-planet-panel-card {
+.blackhole-body-panel-card {
   padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.2rem;
@@ -250,20 +300,20 @@ body.theme-stars .site-nav a.is-active {
   backdrop-filter: blur(16px);
 }
 
-.blackhole-planet-panel-header {
+.blackhole-body-panel-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.blackhole-planet-panel-type,
-.blackhole-planet-panel-name,
-.blackhole-planet-panel-description {
+.blackhole-body-panel-type,
+.blackhole-body-panel-name,
+.blackhole-body-panel-description {
   margin: 0;
 }
 
-.blackhole-planet-panel-type {
+.blackhole-body-panel-type {
   color: rgba(255, 239, 214, 0.62);
   font-size: 0.72rem;
   font-weight: 700;
@@ -271,14 +321,14 @@ body.theme-stars .site-nav a.is-active {
   text-transform: uppercase;
 }
 
-.blackhole-planet-panel-name {
+.blackhole-body-panel-name {
   margin-top: 0.35rem;
   color: #f8f2eb;
   font-family: 'Fraunces', 'Noto Serif SC', serif;
   font-size: 1.45rem;
 }
 
-.blackhole-planet-panel-close {
+.blackhole-body-panel-close {
   border: 0;
   background: transparent;
   color: rgba(248, 242, 235, 0.72);
@@ -287,7 +337,7 @@ body.theme-stars .site-nav a.is-active {
   cursor: pointer;
 }
 
-.blackhole-planet-panel-preview {
+.blackhole-body-panel-preview {
   position: relative;
   margin-top: 0.9rem;
   min-height: 9rem;
@@ -303,7 +353,7 @@ body.theme-stars .site-nav a.is-active {
   overflow: hidden;
 }
 
-.blackhole-planet-panel-preview-orbit {
+.blackhole-body-panel-preview-orbit {
   position: absolute;
   inset: 0;
   display: grid;
@@ -311,7 +361,7 @@ body.theme-stars .site-nav a.is-active {
   pointer-events: none;
 }
 
-.blackhole-planet-panel-preview-atmosphere {
+.blackhole-body-panel-preview-atmosphere {
   position: relative;
   width: 7rem;
   height: 7rem;
@@ -321,7 +371,7 @@ body.theme-stars .site-nav a.is-active {
   box-shadow: 0 0 30px rgba(135, 188, 255, 0.18);
 }
 
-.blackhole-planet-panel-preview-planet {
+.blackhole-body-panel-preview-planet {
   position: relative;
   width: 5.4rem;
   height: 5.4rem;
@@ -333,21 +383,21 @@ body.theme-stars .site-nav a.is-active {
     0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-.blackhole-planet-panel-preview-water,
-.blackhole-planet-panel-preview-land,
-.blackhole-planet-panel-preview-clouds,
-.blackhole-planet-panel-preview-equator,
-.blackhole-planet-panel-preview-pole,
-.blackhole-planet-panel-preview-ring {
+.blackhole-body-panel-preview-water,
+.blackhole-body-panel-preview-land,
+.blackhole-body-panel-preview-clouds,
+.blackhole-body-panel-preview-equator,
+.blackhole-body-panel-preview-pole,
+.blackhole-body-panel-preview-ring {
   position: absolute;
 }
 
-.blackhole-planet-panel-preview-water {
+.blackhole-body-panel-preview-water {
   inset: 0;
   border-radius: 50%;
 }
 
-.blackhole-planet-panel-preview-land {
+.blackhole-body-panel-preview-land {
   inset: 8% 10% 14% 12%;
   border-radius: 48% 52% 44% 56% / 44% 58% 42% 56%;
   opacity: 0.92;
@@ -355,28 +405,28 @@ body.theme-stars .site-nav a.is-active {
   transform: rotate(-18deg);
 }
 
-.blackhole-planet-panel-preview-land::before,
-.blackhole-planet-panel-preview-land::after {
+.blackhole-body-panel-preview-land::before,
+.blackhole-body-panel-preview-land::after {
   content: '';
   position: absolute;
   border-radius: 50%;
 }
 
-.blackhole-planet-panel-preview-land::before {
+.blackhole-body-panel-preview-land::before {
   inset: 28% 36% 8% 6%;
   transform: rotate(26deg);
   background: inherit;
   opacity: 0.92;
 }
 
-.blackhole-planet-panel-preview-land::after {
+.blackhole-body-panel-preview-land::after {
   inset: 6% 8% 36% 42%;
   transform: rotate(-22deg);
   background: inherit;
   opacity: 0.76;
 }
 
-.blackhole-planet-panel-preview-clouds {
+.blackhole-body-panel-preview-clouds {
   inset: 14% 10%;
   border-radius: 999px;
   opacity: 0.3;
@@ -384,8 +434,8 @@ body.theme-stars .site-nav a.is-active {
   filter: blur(1px);
 }
 
-.blackhole-planet-panel-preview-clouds::before,
-.blackhole-planet-panel-preview-clouds::after {
+.blackhole-body-panel-preview-clouds::before,
+.blackhole-body-panel-preview-clouds::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -393,17 +443,17 @@ body.theme-stars .site-nav a.is-active {
   background: inherit;
 }
 
-.blackhole-planet-panel-preview-clouds::before {
+.blackhole-body-panel-preview-clouds::before {
   transform: translateY(1rem) rotate(8deg) scale(0.9);
   opacity: 0.72;
 }
 
-.blackhole-planet-panel-preview-clouds::after {
+.blackhole-body-panel-preview-clouds::after {
   transform: translateY(-0.85rem) rotate(-10deg) scale(0.84);
   opacity: 0.54;
 }
 
-.blackhole-planet-panel-preview-equator {
+.blackhole-body-panel-preview-equator {
   left: 10%;
   right: 10%;
   top: 50%;
@@ -414,7 +464,7 @@ body.theme-stars .site-nav a.is-active {
   mix-blend-mode: screen;
 }
 
-.blackhole-planet-panel-preview-pole {
+.blackhole-body-panel-preview-pole {
   left: 50%;
   width: 2rem;
   height: 1rem;
@@ -424,16 +474,16 @@ body.theme-stars .site-nav a.is-active {
   filter: blur(0.35px);
 }
 
-.blackhole-planet-panel-preview-pole.is-north {
+.blackhole-body-panel-preview-pole.is-north {
   top: 0.25rem;
 }
 
-.blackhole-planet-panel-preview-pole.is-south {
+.blackhole-body-panel-preview-pole.is-south {
   bottom: 0.25rem;
   transform: translateX(-50%) rotate(180deg);
 }
 
-.blackhole-planet-panel-preview-ring {
+.blackhole-body-panel-preview-ring {
   left: 50%;
   top: 50%;
   width: 8rem;
@@ -445,7 +495,7 @@ body.theme-stars .site-nav a.is-active {
   opacity: 0.6;
 }
 
-.blackhole-planet-panel-preview-ring::before {
+.blackhole-body-panel-preview-ring::before {
   content: '';
   position: absolute;
   inset: 0.18rem 0.5rem;
@@ -453,7 +503,7 @@ body.theme-stars .site-nav a.is-active {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-.blackhole-planet-panel-preview p {
+.blackhole-body-panel-preview p {
   position: relative;
   z-index: 1;
   margin: 0;
@@ -463,44 +513,44 @@ body.theme-stars .site-nav a.is-active {
   text-transform: uppercase;
 }
 
-.blackhole-planet-panel-description {
+.blackhole-body-panel-description {
   margin-top: 0.9rem;
   color: rgba(248, 242, 235, 0.82);
   font-size: 0.94rem;
   line-height: 1.7;
 }
 
-.blackhole-planet-panel-stats {
+.blackhole-body-panel-stats {
   margin: 1rem 0 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
-.blackhole-planet-panel-stats div {
+.blackhole-body-panel-stats div {
   padding: 0.72rem 0.78rem;
   border-radius: 0.85rem;
   background: rgba(255, 255, 255, 0.04);
 }
 
-.blackhole-planet-panel-stats dt,
-.blackhole-planet-panel-stats dd {
+.blackhole-body-panel-stats dt,
+.blackhole-body-panel-stats dd {
   margin: 0;
 }
 
-.blackhole-planet-panel-stats dt {
+.blackhole-body-panel-stats dt {
   color: rgba(255, 239, 214, 0.56);
   font-size: 0.72rem;
 }
 
-.blackhole-planet-panel-stats dd {
+.blackhole-body-panel-stats dd {
   margin-top: 0.35rem;
   color: #f8f2eb;
   font-size: 0.92rem;
   line-height: 1.55;
 }
 
-.blackhole-planet-panel-link {
+.blackhole-body-panel-link {
   display: inline-flex;
   margin-top: 1rem;
   padding: 0.8rem 1rem;
@@ -511,14 +561,21 @@ body.theme-stars .site-nav a.is-active {
 }
 
 @media (max-width: 720px) {
-  .blackhole-planet-panel {
+  .blackhole-body-set-debug {
+    top: 4.8rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    min-width: 0;
+  }
+
+  .blackhole-body-panel {
     right: 0.75rem;
     bottom: 0.75rem;
     left: 0.75rem;
     width: auto;
   }
 
-  .blackhole-planet-panel-stats {
+  .blackhole-body-panel-stats {
     grid-template-columns: 1fr;
   }
 }

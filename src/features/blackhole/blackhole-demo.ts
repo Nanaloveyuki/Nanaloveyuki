@@ -8,30 +8,34 @@ import { CameraDragControls, KeyboardMoveControls } from '@blackhole/core/contro
 import { Observer } from '@blackhole/core/observer';
 import { getBlackholeSceneTarget } from '@blackhole/scenes/homeSceneMath';
 import { createHomePresentationController } from '@blackhole/scenes/homePresentationController';
+import { createBodyDomBridge } from '@blackhole/systems/bodies/bodyDomBridge';
 import { createOrbitPresentationController } from '@blackhole/scenes/orbitPresentationController';
-import { createPlanetDomBridge } from '@blackhole/systems/planets/planetDomBridge';
-import { createPlanetInteractionController } from '@blackhole/systems/planets/planetInteractionController';
-import { createPlanetSystem } from '@blackhole/systems/planets/planetSystem';
+import { createBodyInteractionController } from '@blackhole/systems/bodies/bodyInteractionController';
+import { createBodySystem } from '@blackhole/systems/bodies/bodySystem';
+import { adaptBodySourcesToBodyDefinitions } from '@blackhole/systems/bodies/bodyFactories';
 import {
   BLACKHOLE_BODY_CLASS,
+  BODY_PANEL_CLOSE_SELECTOR,
+  BODY_PANEL_SELECTOR,
   FRIEND_TOOLTIP_SELECTOR,
   HEADER_SELECTOR,
   HOST_SELECTOR,
   NIGHT_WARNING_CONFIRM_SELECTOR,
   NIGHT_WARNING_SELECTOR,
   PAGE_SELECTOR,
-  PLANET_PANEL_CLOSE_SELECTOR,
-  PLANET_PANEL_SELECTOR,
   SCROLL_TRACK_SELECTOR,
 } from '@blackhole/types';
 import type {
+  BodyPanelElements,
+  BodySource,
+  BodySourceSetMap,
+  BodyTooltipElements,
   BlackholeWindow,
-  FriendPlanet,
-  FriendTooltipElements,
-  PlanetPanelElements,
   PerformanceConfig,
   SceneName,
 } from '@blackhole/types';
+import type { BodyPresentationSource } from '@blackhole/systems/bodies/bodyPresentation';
+import type { BodyDefinition } from '@blackhole/systems/bodies/bodyTypes';
 import {
   blackholeFragmentShader,
   blackholeVertexShader,
@@ -45,7 +49,61 @@ import {
 } from '@blackhole/math';
 
 export const bootBlackholeDemo = () => {
+  const BODY_SET_QUERY_KEYS = ['bodySet', 'body-set'] as const;
+
+  const resolveRequestedBodySourceSetKey = () => {
+    const searchParams = new URLSearchParams(window.location.search);
+
+    for (const queryKey of BODY_SET_QUERY_KEYS) {
+      const queryValue = searchParams.get(queryKey)?.trim();
+      if (queryValue) {
+        return queryValue;
+      }
+    }
+
+    return null;
+  };
+
+  const resolvePreloadedBodySources = (
+    bodySources: BodySource[] | undefined,
+    bodySourceSets: BodySourceSetMap | undefined,
+    defaultSetKey: string,
+  ) => {
+    const requestedSetKey = resolveRequestedBodySourceSetKey();
+
+    if (requestedSetKey && bodySourceSets) {
+      const requestedSources = bodySourceSets[requestedSetKey];
+      if (Array.isArray(requestedSources) && requestedSources.length > 0) {
+        return {
+          bodySources: requestedSources,
+          bodySetKey: requestedSetKey,
+        };
+      }
+    }
+
+    if (Array.isArray(bodySources)) {
+      return {
+        bodySources,
+        bodySetKey: defaultSetKey,
+      };
+    }
+
+    if (bodySourceSets) {
+      const fallbackSources = bodySourceSets[defaultSetKey];
+      if (Array.isArray(fallbackSources)) {
+        return {
+          bodySources: fallbackSources,
+          bodySetKey: defaultSetKey,
+        };
+      }
+    }
+
+    throw new Error('Missing preloaded body sources');
+  };
+
   const blackholeWindow = window as BlackholeWindow;
+  const defaultBodySourceSetKey =
+    blackholeWindow.__BLACKHOLE_DEFAULT_BODY_SOURCE_SET__ ?? 'default';
   if (
     blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ &&
     blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ !== 'home'
@@ -56,25 +114,45 @@ export const bootBlackholeDemo = () => {
   const host = document.querySelector<HTMLElement>(HOST_SELECTOR);
 
   if (!host) {
+    blackholeWindow.__BLACKHOLE_ACTIVE_BODY_SOURCE_SET__ = null;
     blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = false;
     blackholeWindow.__BLACKHOLE_DEMO_HOST__ = null;
     return;
   }
 
+  const selectedBodySourceSet = resolvePreloadedBodySources(
+    blackholeWindow.__BLACKHOLE_BODY_SOURCES__,
+    blackholeWindow.__BLACKHOLE_BODY_SOURCE_SETS__,
+    defaultBodySourceSetKey,
+  );
+
   const canvasAlreadyMounted = !!host.querySelector('canvas');
+  const bodySourceSetChanged =
+    blackholeWindow.__BLACKHOLE_ACTIVE_BODY_SOURCE_SET__ !== selectedBodySourceSet.bodySetKey;
 
   if (
     blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ &&
     blackholeWindow.__BLACKHOLE_DEMO_HOST__ === host &&
-    canvasAlreadyMounted
+    canvasAlreadyMounted &&
+    !bodySourceSetChanged
   ) {
     blackholeWindow.__BLACKHOLE_DEMO_REFRESH__?.();
     return;
   }
 
+  if (
+    blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ &&
+    blackholeWindow.__BLACKHOLE_DEMO_HOST__ === host &&
+    canvasAlreadyMounted &&
+    bodySourceSetChanged
+  ) {
+    blackholeWindow.__BLACKHOLE_DISPOSE__?.();
+  }
+
   blackholeWindow.__BLACKHOLE_DEMO_INITIALIZED__ = true;
   blackholeWindow.__BLACKHOLE_DEMO_HOST__ = host;
   blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ = 'home';
+  blackholeWindow.__BLACKHOLE_ACTIVE_BODY_SOURCE_SET__ = selectedBodySourceSet.bodySetKey;
 
   const canvasMount = host.querySelector<HTMLElement>('[data-blackhole-canvas]');
   let pageHost = document.querySelector<HTMLElement>(PAGE_SELECTOR);
@@ -88,139 +166,207 @@ export const bootBlackholeDemo = () => {
   const friendTooltipName = friendTooltip?.querySelector<HTMLElement>(
     '[data-blackhole-friend-tooltip-name]',
   );
-  const friendTooltipElements: FriendTooltipElements = {
+  const bodySetDebug = document.querySelector<HTMLElement>('[data-blackhole-body-set-debug]');
+  const bodySetDebugValue = bodySetDebug?.querySelector<HTMLElement>(
+    '[data-blackhole-body-set-debug-value]',
+  );
+  const bodySetDebugCount = bodySetDebug?.querySelector<HTMLElement>(
+    '[data-blackhole-body-set-debug-count]',
+  );
+  const bodyTooltipElements: BodyTooltipElements = {
     root: friendTooltip ?? null,
     name: friendTooltipName ?? null,
   };
-  const planetPanel = document.querySelector<HTMLElement>(PLANET_PANEL_SELECTOR);
-  const planetPanelClose = planetPanel?.querySelector<HTMLButtonElement>(
-    PLANET_PANEL_CLOSE_SELECTOR,
+  const bodyPanel = document.querySelector<HTMLElement>(BODY_PANEL_SELECTOR);
+  const bodyPanelClose = bodyPanel?.querySelector<HTMLButtonElement>(BODY_PANEL_CLOSE_SELECTOR);
+  const bodyPanelType = bodyPanel?.querySelector<HTMLElement>('[data-blackhole-body-panel-type]');
+  const bodyPanelName = bodyPanel?.querySelector<HTMLElement>('[data-blackhole-body-panel-name]');
+  const bodyPanelDescription = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-description]',
   );
-  const planetPanelType = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-type]',
+  const bodyPanelPreview = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview]',
   );
-  const planetPanelName = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-name]',
+  const bodyPanelPreviewAtmosphere = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-atmosphere]',
   );
-  const planetPanelDescription = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-description]',
+  const bodyPanelPreviewPlanet = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-planet]',
   );
-  const planetPanelPreview = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview]',
+  const bodyPanelPreviewWater = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-water]',
   );
-  const planetPanelPreviewAtmosphere = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-atmosphere]',
+  const bodyPanelPreviewLand = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-land]',
   );
-  const planetPanelPreviewPlanet = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-planet]',
+  const bodyPanelPreviewClouds = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-clouds]',
   );
-  const planetPanelPreviewWater = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-water]',
+  const bodyPanelPreviewEquator = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-equator]',
   );
-  const planetPanelPreviewLand = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-land]',
+  const bodyPanelPreviewPoleNorth = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-pole-north]',
   );
-  const planetPanelPreviewClouds = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-clouds]',
+  const bodyPanelPreviewPoleSouth = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-pole-south]',
   );
-  const planetPanelPreviewEquator = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-equator]',
+  const bodyPanelPreviewRing = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-ring]',
   );
-  const planetPanelPreviewPoleNorth = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-pole-north]',
+  const bodyPanelPreviewCopy = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-preview-copy]',
   );
-  const planetPanelPreviewPoleSouth = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-pole-south]',
+  const bodyPanelLink = bodyPanel?.querySelector<HTMLAnchorElement>(
+    '[data-blackhole-body-panel-link]',
   );
-  const planetPanelPreviewRing = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-ring]',
+  const bodyPanelStatType = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-type]',
   );
-  const planetPanelPreviewCopy = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-preview-copy]',
+  const bodyPanelStatRadius = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-radius]',
   );
-  const planetPanelLink = planetPanel?.querySelector<HTMLAnchorElement>(
-    '[data-blackhole-planet-panel-link]',
+  const bodyPanelStatTemperature = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-temperature]',
   );
-  const planetPanelStatType = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-type]',
+  const bodyPanelStatAtmosphere = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-atmosphere]',
   );
-  const planetPanelStatRadius = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-radius]',
+  const bodyPanelStatOrbit = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-orbit]',
   );
-  const planetPanelStatTemperature = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-temperature]',
+  const bodyPanelStatOrbitParent = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-orbit-parent]',
   );
-  const planetPanelStatAtmosphere = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-atmosphere]',
+  const bodyPanelStatOrbitSource = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-orbit-source]',
   );
-  const planetPanelStatOrbit = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-orbit]',
+  const bodyPanelStatHierarchy = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-hierarchy]',
   );
-  const planetPanelStatWeight = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-weight]',
+  const bodyPanelStatWeight = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-weight]',
   );
-  const planetPanelStatRotation = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-rotation]',
+  const bodyPanelStatDensity = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-density]',
   );
-  const planetPanelStatTilt = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-tilt]',
+  const bodyPanelStatGravity = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-gravity]',
   );
-  const planetPanelStatPoles = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-poles]',
+  const bodyPanelStatPhysics = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-physics]',
   );
-  const planetPanelStatEquator = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-equator]',
+  const bodyPanelStatScaleRadius = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-scale-radius]',
   );
-  const planetPanelStatClouds = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-clouds]',
+  const bodyPanelStatScaleOrbit = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-scale-orbit]',
   );
-  const planetPanelStatSurface = planetPanel?.querySelector<HTMLElement>(
-    '[data-blackhole-planet-panel-stat-surface]',
+  const bodyPanelStatScaleMotion = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-scale-motion]',
   );
-  const planetPanelElements: PlanetPanelElements = {
-    panel: planetPanel ?? null,
-    close: planetPanelClose ?? null,
-    type: planetPanelType ?? null,
-    name: planetPanelName ?? null,
-    description: planetPanelDescription ?? null,
-    preview: planetPanelPreview ?? null,
-    previewAtmosphere: planetPanelPreviewAtmosphere ?? null,
-    previewPlanet: planetPanelPreviewPlanet ?? null,
-    previewWater: planetPanelPreviewWater ?? null,
-    previewLand: planetPanelPreviewLand ?? null,
-    previewClouds: planetPanelPreviewClouds ?? null,
-    previewEquator: planetPanelPreviewEquator ?? null,
-    previewPoleNorth: planetPanelPreviewPoleNorth ?? null,
-    previewPoleSouth: planetPanelPreviewPoleSouth ?? null,
-    previewRing: planetPanelPreviewRing ?? null,
-    previewCopy: planetPanelPreviewCopy ?? null,
-    link: planetPanelLink ?? null,
-    statType: planetPanelStatType ?? null,
-    statRadius: planetPanelStatRadius ?? null,
-    statTemperature: planetPanelStatTemperature ?? null,
-    statAtmosphere: planetPanelStatAtmosphere ?? null,
-    statOrbit: planetPanelStatOrbit ?? null,
-    statWeight: planetPanelStatWeight ?? null,
-    statRotation: planetPanelStatRotation ?? null,
-    statTilt: planetPanelStatTilt ?? null,
-    statPoles: planetPanelStatPoles ?? null,
-    statEquator: planetPanelStatEquator ?? null,
-    statClouds: planetPanelStatClouds ?? null,
-    statSurface: planetPanelStatSurface ?? null,
+  const bodyPanelStatInputState = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-input-state]',
+  );
+  const bodyPanelStatDerivedState = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-derived-state]',
+  );
+  const bodyPanelStatRotation = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-rotation]',
+  );
+  const bodyPanelStatTilt = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-tilt]',
+  );
+  const bodyPanelStatPoles = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-poles]',
+  );
+  const bodyPanelStatEquator = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-equator]',
+  );
+  const bodyPanelStatClouds = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-clouds]',
+  );
+  const bodyPanelStatSurface = bodyPanel?.querySelector<HTMLElement>(
+    '[data-blackhole-body-panel-stat-surface]',
+  );
+  const bodyPanelElements: BodyPanelElements = {
+    panel: bodyPanel ?? null,
+    close: bodyPanelClose ?? null,
+    type: bodyPanelType ?? null,
+    name: bodyPanelName ?? null,
+    description: bodyPanelDescription ?? null,
+    preview: bodyPanelPreview ?? null,
+    previewAtmosphere: bodyPanelPreviewAtmosphere ?? null,
+    previewPlanet: bodyPanelPreviewPlanet ?? null,
+    previewWater: bodyPanelPreviewWater ?? null,
+    previewLand: bodyPanelPreviewLand ?? null,
+    previewClouds: bodyPanelPreviewClouds ?? null,
+    previewEquator: bodyPanelPreviewEquator ?? null,
+    previewPoleNorth: bodyPanelPreviewPoleNorth ?? null,
+    previewPoleSouth: bodyPanelPreviewPoleSouth ?? null,
+    previewRing: bodyPanelPreviewRing ?? null,
+    previewCopy: bodyPanelPreviewCopy ?? null,
+    link: bodyPanelLink ?? null,
+    statType: bodyPanelStatType ?? null,
+    statRadius: bodyPanelStatRadius ?? null,
+    statTemperature: bodyPanelStatTemperature ?? null,
+    statAtmosphere: bodyPanelStatAtmosphere ?? null,
+    statOrbit: bodyPanelStatOrbit ?? null,
+    statOrbitParent: bodyPanelStatOrbitParent ?? null,
+    statOrbitSource: bodyPanelStatOrbitSource ?? null,
+    statHierarchy: bodyPanelStatHierarchy ?? null,
+    statWeight: bodyPanelStatWeight ?? null,
+    statDensity: bodyPanelStatDensity ?? null,
+    statGravity: bodyPanelStatGravity ?? null,
+    statPhysics: bodyPanelStatPhysics ?? null,
+    statScaleRadius: bodyPanelStatScaleRadius ?? null,
+    statScaleOrbit: bodyPanelStatScaleOrbit ?? null,
+    statScaleMotion: bodyPanelStatScaleMotion ?? null,
+    statInputState: bodyPanelStatInputState ?? null,
+    statDerivedState: bodyPanelStatDerivedState ?? null,
+    statRotation: bodyPanelStatRotation ?? null,
+    statTilt: bodyPanelStatTilt ?? null,
+    statPoles: bodyPanelStatPoles ?? null,
+    statEquator: bodyPanelStatEquator ?? null,
+    statClouds: bodyPanelStatClouds ?? null,
+    statSurface: bodyPanelStatSurface ?? null,
   };
-  const planetDomBridge = createPlanetDomBridge({
-    panel: planetPanelElements,
-    tooltip: friendTooltipElements,
+  const bodyDomBridge = createBodyDomBridge({
+    panel: bodyPanelElements,
+    tooltip: bodyTooltipElements,
   });
 
   if (!canvasMount) {
     throw new Error('Missing blackhole demo mount points');
   }
 
+  const syncBodySourceSetDebug = () => {
+    document.body.dataset.blackholeBodySourceSet = selectedBodySourceSet.bodySetKey;
+
+    if (!bodySetDebug) {
+      return;
+    }
+
+    const isDefaultBodySet = selectedBodySourceSet.bodySetKey === defaultBodySourceSetKey;
+    bodySetDebug.hidden = isDefaultBodySet;
+
+    if (bodySetDebugValue) {
+      bodySetDebugValue.textContent = selectedBodySourceSet.bodySetKey;
+    }
+
+    if (bodySetDebugCount) {
+      const bodyCount = selectedBodySourceSet.bodySources.length;
+      bodySetDebugCount.textContent = `${bodyCount} bod${bodyCount === 1 ? 'y' : 'ies'}`;
+    }
+  };
+
+  syncBodySourceSetDebug();
+
   blackholeWindow.__BLACKHOLE_DEMO_REFRESH__ = () => {
     pageHost = document.querySelector<HTMLElement>(PAGE_SELECTOR);
     scrollTrack = pageHost?.querySelector<HTMLElement>(SCROLL_TRACK_SELECTOR) ?? null;
     siteHeader = document.querySelector<HTMLElement>(HEADER_SELECTOR);
+    syncBodySourceSetDebug();
     setDemoSize();
   };
 
@@ -255,12 +401,12 @@ export const bootBlackholeDemo = () => {
   const textures = new Map<string, THREE.Texture | null>();
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
-  const planetSystem = createPlanetSystem(overlayScene, orbitScene);
-  const { orbitGroup } = planetSystem;
+  const bodySystem = createBodySystem(overlayScene, orbitScene);
+  const { orbitGroup } = bodySystem;
 
-  const friendPlanets = planetSystem.entries;
-  const clickablePlanetMeshes = planetSystem.clickableMeshes;
-  let hoveredFriendPlanet: FriendPlanet | null = null;
+  const bodyEntries = bodySystem.bodyEntries;
+  const clickableBodies = bodySystem.clickableBodies;
+  let hoveredBodyPresentation: BodyPresentationSource | null = null;
   const loadTexture = (
     name: string,
     url: string,
@@ -284,18 +430,16 @@ export const bootBlackholeDemo = () => {
       );
     });
 
-  const loadFriendPlanets = async () => {
-    const friendPlanets = blackholeWindow.__BLACKHOLE_FRIEND_PLANETS__;
-
-    if (!Array.isArray(friendPlanets)) {
-      throw new Error('Missing preloaded friend planets');
-    }
-
-    return friendPlanets;
+  const loadPreloadedBodySources = async (): Promise<BodySource[]> => {
+    return selectedBodySourceSet.bodySources;
   };
 
-  const getPlanetEntryByMesh = (mesh?: THREE.Mesh) =>
-    friendPlanets.find((planetEntry) => planetEntry.mesh === mesh) ?? null;
+  const loadPreloadedBodyDefinitions = async (): Promise<BodyDefinition[]> => {
+    const preloadedBodySources = await loadPreloadedBodySources();
+    return adaptBodySourcesToBodyDefinitions(preloadedBodySources);
+  };
+
+  const getBodyEntryByMesh = (mesh?: THREE.Mesh) => bodySystem.getEntryByMesh(mesh);
 
   const isPointerInsideBlackholeViewport = (clientX: number, clientY: number) => {
     const bounds = renderer.domElement.getBoundingClientRect();
@@ -312,7 +456,7 @@ export const bootBlackholeDemo = () => {
     target instanceof Element &&
     Boolean(
       target.closest(
-        'a, button, input, textarea, select, summary, .site-header, .site-footer, [data-blackhole-planet-panel], [data-blackhole-night-warning]',
+        'a, button, input, textarea, select, summary, .site-header, .site-footer, [data-blackhole-body-panel], [data-blackhole-night-warning]',
       ),
     );
 
@@ -322,9 +466,9 @@ export const bootBlackholeDemo = () => {
     pointer.y = -((clientY - bounds.top) / bounds.height) * 2 + 1;
   };
 
-  const buildFriendPlanetSystem = async () => {
-    const friends = await loadFriendPlanets();
-    planetSystem.build(friends);
+  const buildBodySystem = async () => {
+    const bodyDefinitions = await loadPreloadedBodyDefinitions();
+    bodySystem.buildBodies(bodyDefinitions);
   };
 
   const performanceConfig = { ...DEFAULT_PERFORMANCE_CONFIG };
@@ -435,8 +579,8 @@ export const bootBlackholeDemo = () => {
 
     uniforms.resolution.value.set(width * resolutionScale, height * resolutionScale);
   };
-  const planetInteractionController = createPlanetInteractionController({
-    planetDomBridge,
+  const bodyInteractionController = createBodyInteractionController({
+    bodyDomBridge,
     keyboardMoveControl,
     observer,
     performanceConfig,
@@ -600,7 +744,7 @@ export const bootBlackholeDemo = () => {
     observer.fov = cameraConfig.fov;
 
     if (sceneName === 'home') {
-      planetInteractionController.setFocusPlanet(
+      bodyInteractionController.setFocusBody(
         homePresentationController.update({
           delta,
           target,
@@ -613,10 +757,10 @@ export const bootBlackholeDemo = () => {
           moveAnchor,
           cameraControl,
           keyboardMoveControl,
-          friendPlanets,
-          focusPlanetEntry: planetInteractionController.getFocusPlanet(),
-          openPlanetInspection: planetInteractionController.openInspection,
-          syncPlanetDetailResolution: planetInteractionController.syncDetailResolution,
+          bodyEntries,
+          focusBodyEntry: bodyInteractionController.getFocusBody(),
+          openBodyInspection: bodyInteractionController.openInspection,
+          syncBodyDetailResolution: bodyInteractionController.syncDetailResolution,
           cameraDistance: cameraConfig.distance,
         }),
       );
@@ -663,43 +807,43 @@ export const bootBlackholeDemo = () => {
     bloomPass.radius = bloomConfig.radius;
     bloomPass.threshold = bloomConfig.threshold;
 
-    planetSystem.updateUniforms(state.time, origin);
+    bodySystem.updateUniforms(state.time, origin);
   };
 
-  const updateFriendPlanetSystem = (delta: number) => {
+  const updateBodySystem = (delta: number) => {
     if (getSceneName() !== 'home') {
       orbitGroup.visible = false;
       return;
     }
 
     orbitGroup.visible = true;
-    planetSystem.update(delta, planetInteractionController.getSelectedPlanet());
+    bodySystem.update(delta, bodyInteractionController.getSelectedBody());
   };
 
-  const updatePlanetInteractivity = (event?: PointerEvent) => {
+  const updateBodyInteractivity = (event?: PointerEvent) => {
     const isHome = getSceneName() === 'home';
 
     if (cameraControl.isPointerLocked) {
-      hoveredFriendPlanet = null;
+      hoveredBodyPresentation = null;
       canvasMount.style.cursor = 'none';
-      planetDomBridge.clearTooltip();
+      bodyDomBridge.clearTooltip();
       return;
     }
 
     canvasMount.style.cursor = isHome ? 'auto' : '';
-    if (!isHome || clickablePlanetMeshes.length === 0) {
+    if (!isHome || clickableBodies.length === 0) {
       return;
     }
 
     raycaster.setFromCamera(pointer, observer);
-    const intersections = raycaster.intersectObjects(clickablePlanetMeshes, false);
-    const hoveredPlanet = intersections[0]?.object as THREE.Mesh | undefined;
-    hoveredFriendPlanet =
-      (hoveredPlanet?.userData.friendPlanet as FriendPlanet | undefined) ?? null;
-    canvasMount.style.cursor = hoveredPlanet ? 'pointer' : 'auto';
+    const intersections = raycaster.intersectObjects(clickableBodies, false);
+    const hoveredBody = intersections[0]?.object as THREE.Mesh | undefined;
+    hoveredBodyPresentation =
+      (hoveredBody?.userData.bodyPresentation as BodyPresentationSource | undefined) ?? null;
+    canvasMount.style.cursor = hoveredBody ? 'pointer' : 'auto';
 
-    if (!hoveredFriendPlanet) {
-      planetDomBridge.clearTooltip();
+    if (!hoveredBodyPresentation) {
+      bodyDomBridge.clearTooltip();
       return;
     }
 
@@ -707,7 +851,7 @@ export const bootBlackholeDemo = () => {
       return;
     }
 
-    planetDomBridge.syncTooltip(hoveredFriendPlanet, event.clientX, event.clientY);
+    bodyDomBridge.syncTooltip(hoveredBodyPresentation, event.clientX, event.clientY);
   };
 
   const onPointerCanvasMove = (event: PointerEvent) => {
@@ -722,13 +866,13 @@ export const bootBlackholeDemo = () => {
     }
 
     syncPointerFromClientPosition(event.clientX, event.clientY);
-    updatePlanetInteractivity(event);
+    updateBodyInteractivity(event);
   };
 
   const onCanvasPointerLeave = () => {
-    hoveredFriendPlanet = null;
+    hoveredBodyPresentation = null;
     canvasMount.style.cursor = 'auto';
-    planetDomBridge.clearTooltip();
+    bodyDomBridge.clearTooltip();
   };
 
   const onCanvasClick = (event: MouseEvent) => {
@@ -744,21 +888,21 @@ export const bootBlackholeDemo = () => {
     syncPointerFromClientPosition(event.clientX, event.clientY);
 
     raycaster.setFromCamera(pointer, observer);
-    const intersections = raycaster.intersectObjects(clickablePlanetMeshes, false);
-    const clickedPlanet = intersections[0]?.object as THREE.Mesh | undefined;
-    const clickedPlanetEntry = getPlanetEntryByMesh(clickedPlanet);
+    const intersections = raycaster.intersectObjects(clickableBodies, false);
+    const clickedBody = intersections[0]?.object as THREE.Mesh | undefined;
+    const clickedBodyEntry = getBodyEntryByMesh(clickedBody);
 
-    if (!clickedPlanetEntry) {
-      planetInteractionController.setSelectedPlanet(null);
+    if (!clickedBodyEntry) {
+      bodyInteractionController.setSelectedBody(null);
       return;
     }
 
-    if (planetInteractionController.getSelectedPlanet() !== clickedPlanetEntry) {
-      planetInteractionController.setSelectedPlanet(clickedPlanetEntry);
+    if (bodyInteractionController.getSelectedBody() !== clickedBodyEntry) {
+      bodyInteractionController.setSelectedBody(clickedBodyEntry);
       return;
     }
 
-    planetInteractionController.openInspection(clickedPlanetEntry);
+    bodyInteractionController.openInspection(clickedBodyEntry);
   };
 
   const updateReadableContrast = () => {
@@ -856,11 +1000,11 @@ export const bootBlackholeDemo = () => {
 
     observer.update(delta);
     updatePresentation(delta);
-    updateFriendPlanetSystem(delta);
+    updateBodySystem(delta);
     updateUniforms();
     composer.render();
     updateReadableContrast();
-    updatePlanetInteractivity();
+    updateBodyInteractivity();
     samplePerformance(delta);
 
     state.rafId = window.requestAnimationFrame(tick);
@@ -914,7 +1058,7 @@ export const bootBlackholeDemo = () => {
       THREE.LinearFilter,
       THREE.LinearFilter,
     ),
-    buildFriendPlanetSystem(),
+    buildBodySystem(),
   ]).then(() => {
     setDemoSize();
     cameraControl.handleResize();
@@ -943,7 +1087,7 @@ export const bootBlackholeDemo = () => {
   window.addEventListener('scroll', syncScrollState, { passive: true });
   window.addEventListener('resize', onViewportChange);
   nightWarningConfirm?.addEventListener('click', dismissNightWarning);
-  planetPanelClose?.addEventListener('click', planetInteractionController.closePanel);
+  bodyPanelClose?.addEventListener('click', bodyInteractionController.closePanel);
   document.addEventListener('dragstart', (event) => {
     if (!(event.altKey && event instanceof MouseEvent && event.button === 0)) {
       event.preventDefault();
@@ -970,14 +1114,14 @@ export const bootBlackholeDemo = () => {
     window.removeEventListener('scroll', syncScrollState);
     window.removeEventListener('resize', onViewportChange);
     nightWarningConfirm?.removeEventListener('click', dismissNightWarning);
-    planetPanelClose?.removeEventListener('click', planetInteractionController.closePanel);
+    bodyPanelClose?.removeEventListener('click', bodyInteractionController.closePanel);
     cameraControl.dispose();
     keyboardMoveControl.dispose();
     renderer.dispose();
     mesh.geometry.dispose();
     material.dispose();
     textures.forEach((texture) => texture?.dispose());
-    planetSystem.dispose();
+    bodySystem.dispose();
     if (renderer.domElement.parentElement === canvasMount) {
       canvasMount.removeChild(renderer.domElement);
     }
@@ -985,6 +1129,7 @@ export const bootBlackholeDemo = () => {
     blackholeWindow.__BLACKHOLE_DEMO_REFRESH__ = undefined;
     blackholeWindow.__BLACKHOLE_DEMO_HOST__ = null;
     blackholeWindow.__BLACKHOLE_RUNTIME_MODE__ = null;
+    blackholeWindow.__BLACKHOLE_ACTIVE_BODY_SOURCE_SET__ = null;
     blackholeWindow.__BLACKHOLE_DISPOSE__ = undefined;
   };
 
